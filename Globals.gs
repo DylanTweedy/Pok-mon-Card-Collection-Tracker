@@ -1,6 +1,6 @@
-
-const API_KEY = "YOUR_API_KEY_HERE";
+const API_KEY = "your-api-key-here";
 const USD_TO_GBP = 0.78;
+const EUR_TO_GBP = 0.85;
 
 const CONDITIONS = {
   "Near Mint": 1.0,
