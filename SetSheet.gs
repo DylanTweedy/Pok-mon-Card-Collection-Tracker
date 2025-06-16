@@ -37,8 +37,14 @@ function createOrUpdateSetSheet(setId) {
     headers: { 'X-Api-Key': API_KEY }
   };
 
-  const response = UrlFetchApp.fetch(url, options);
-  const cards = JSON.parse(response.getContentText()).data;
+  let cards;
+  try {
+    const response = UrlFetchApp.fetch(url, options);
+    cards = JSON.parse(response.getContentText()).data;
+  } catch (e) {
+    SpreadsheetApp.getUi().alert(`API error: ${e.message}`);
+    return;
+  }
 
   if (!cards || cards.length === 0) {
     SpreadsheetApp.getUi().alert(`No cards found for set ID: ${setId}`);
