@@ -1,3 +1,6 @@
+/**
+ * Rebuilds the dashboard sheet with current collection statistics.
+ */
 function updateDashboard() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let dashboard = ss.getSheetByName("Dashboard");

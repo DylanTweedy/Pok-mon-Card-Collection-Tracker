@@ -1,3 +1,7 @@
+/**
+ * Draws a table of the top 10 most owned cards on the dashboard.
+ * @param {GoogleAppsScript.Spreadsheet.Sheet} dashboard Dashboard sheet
+ */
 function drawMostOwnedTable(dashboard) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const allCards = [];
@@ -23,6 +27,10 @@ function drawMostOwnedTable(dashboard) {
   dashboard.getRange(21, 8, table.length - 1, 3).setValues(table.slice(1));
 }
 
+/**
+ * Draws a stacked bar chart showing quantity of cards by rarity for each set.
+ * @param {GoogleAppsScript.Spreadsheet.Sheet} dashboard Dashboard sheet
+ */
 function drawRarityStackedChart(dashboard) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const rarities = {};

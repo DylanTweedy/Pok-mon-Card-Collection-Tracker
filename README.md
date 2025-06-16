@@ -15,10 +15,13 @@ Track and visualize your Pokémon TCG collection in Google Sheets with:
 - Per-set ownership and value summary
 
 ## Setup
-1. Copy the script files into your Apps Script project
-2. Set your `API_KEY` in `Globals.gs`
-3. Run `updateDashboard()` to generate the interface
+1. Open a new Google Sheet and launch **Extensions > Apps Script**.
+2. Copy all `.gs` files from this repo into the Apps Script editor.
+3. Obtain an API key from [pokemontcg.io](https://pokemontcg.io/) and set it in `Globals.gs` under the `API_KEY` constant.
+4. Run `createOrUpdateSetSheet(setId)` to create a sheet for a set.
+5. Execute `updateDashboard()` (or use the custom menu) to build the dashboard.
 
 ---
 
-Licensed under MIT. Built by Dylan Tweedy, 2025.
+This project is released under the [MIT License](LICENSE).
+Built by Dylan Tweedy, 2025.

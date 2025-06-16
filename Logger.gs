@@ -1,3 +1,6 @@
+/**
+ * Logs a snapshot of collection totals and rarity counts to the ValueLog sheet.
+ */
 function logValueSnapshot() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName("ValueLog") || ss.insertSheet("ValueLog");
