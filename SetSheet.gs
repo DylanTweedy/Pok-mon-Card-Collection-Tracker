@@ -1,5 +1,4 @@
-// === SetSheet.gs ===
-// Handles creation and updating of set-specific sheets with Pokémon card data
+// === SetSheet.gs === (Updated to use cardmarket prices)
 
 const COLS = {
   QUANTITY: 1,
@@ -11,11 +10,6 @@ const COLS = {
   CARD_ID: 7
 };
 
-/**
- * Converts a 1-indexed column number to its letter representation.
- * @param {number} col Column index
- * @return {string} Column letter
- */
 function colToLetter(col) {
   let temp = '';
   while (col > 0) {
@@ -26,75 +20,67 @@ function colToLetter(col) {
   return temp;
 }
 
-/**
- * Creates or refreshes a sheet for the given set ID.
- * @param {string} setId The Pokémon TCG set identifier
- */
 function createOrUpdateSetSheet(setId) {
   const url = `https://api.pokemontcg.io/v2/cards?q=set.id:${setId}&orderBy=number&pageSize=250`;
-  const options = {
-    method: 'get',
-    headers: { 'X-Api-Key': API_KEY }
-  };
+  const options = { headers: { 'X-Api-Key': API_KEY } };
+  const res = UrlFetchApp.fetch(url, options);
+  const json = JSON.parse(res.getContentText());
+  const cards = Array.isArray(json.data) ? json.data : [];
 
-  let cards;
-  try {
-    const response = UrlFetchApp.fetch(url, options);
-    cards = JSON.parse(response.getContentText()).data;
-  } catch (e) {
-    SpreadsheetApp.getUi().alert(`API error: ${e.message}`);
-    return;
-  }
-
-  if (!cards || cards.length === 0) {
+  if (cards.length === 0) {
     SpreadsheetApp.getUi().alert(`No cards found for set ID: ${setId}`);
     return;
   }
 
-  const sheetName = cards[0].set.name;
+  const sheetName = cards[0].set?.name || setId;
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let sheet = ss.getSheetByName(sheetName);
   if (sheet) sheet.clear(); else sheet = ss.insertSheet(sheetName);
 
-  const headers = ["🧮 Quantity", "Condition", "📝 Name", "⭐ Rarity", "💰 Market Price (£)", "📈 Total (£)", "🆔 Card ID"];
-  sheet.appendRow(headers);
+  sheet.appendRow([
+    "🧮 Quantity", "Condition", "📝 Name", "⭐ Rarity", "💰 Market Price (£)", "📈 Total (£)", "🆔 Card ID"
+  ]);
 
-  for (const card of cards) {
-    const priceUSD = card.tcgplayer?.prices?.normal?.market || card.tcgplayer?.prices?.holofoil?.market || 0;
-    const priceGBP = priceUSD * USD_TO_GBP;
+  cards.forEach(card => {
+    const cardmarket = card.cardmarket?.prices || {};
+    const priceEUR = cardmarket.averageSellPrice || 0;
+    const priceGBP = priceEUR * EUR_TO_GBP;
     const row = sheet.getLastRow() + 1;
     const totalFormula = `=A${row}*${colToLetter(COLS.PRICE)}${row}`;
-    const conditionDropdown = "Near Mint";
-    sheet.appendRow([0, conditionDropdown, card.name, card.rarity || "Unknown", priceGBP.toFixed(2), totalFormula, card.id]);
-  }
+
+    sheet.appendRow([
+      0,
+      "Near Mint",
+      card.name || "Unknown",
+      card.rarity || "Unknown",
+      priceGBP,
+      totalFormula,
+      card.id || ""
+    ]);
+  });
 
   applySetSheetStyling(sheet);
   addConditionDropdown(sheet);
-  sheet.getRange(2, COLS.PRICE, sheet.getLastRow() - 1).setNumberFormat("£#,##0.00");
+  const numRows = sheet.getLastRow() - 1;
+  sheet.getRange(2, COLS.PRICE, numRows).setNumberFormat("\"\u00a3\"#,##0.00");
 }
 
-/**
- * Applies borders and alignment to a set sheet.
- * @param {GoogleAppsScript.Spreadsheet.Sheet} sheet Sheet to style
- */
 function applySetSheetStyling(sheet) {
   const lastRow = sheet.getLastRow();
   const lastCol = sheet.getLastColumn();
+
   sheet.setFrozenRows(1);
   sheet.getRange(1, 1, 1, lastCol).setFontWeight("bold").setHorizontalAlignment("center");
   sheet.getRange(2, 1, lastRow - 1, 1).setHorizontalAlignment("center");
-  sheet.getRange(2, 5, lastRow - 1, 2).setHorizontalAlignment("center");
-  sheet.getRange(1, 1, lastRow, lastCol).setBorder(true, true, true, true, true, true);
-  sheet.getRange(1, 1, lastRow, lastCol).applyRowBanding(SpreadsheetApp.BandingTheme.LIGHT_GREY);
+  sheet.getRange(2, COLS.PRICE, lastRow - 1, 1).setHorizontalAlignment("center");
+  sheet.getRange(2, COLS.TOTAL, lastRow - 1, 1).setHorizontalAlignment("center");
+
+  sheet.getRange(1, 1, lastRow, lastCol).setBorder(true, true, true, true, true, true).applyRowBanding(SpreadsheetApp.BandingTheme.LIGHT_GREY);
   sheet.autoResizeColumns(1, lastCol);
 }
 
-/**
- * Adds a data validation dropdown for card condition.
- * @param {GoogleAppsScript.Spreadsheet.Sheet} sheet Target sheet
- */
 function addConditionDropdown(sheet) {
-  const range = sheet.getRange(2, 2, sheet.getLastRow() - 1);
+  const range = sheet.getRange(2, COLS.CONDITION, sheet.getLastRow() - 1);
   const rule = SpreadsheetApp.newDataValidation()
     .requireValueInList(Object.keys(CONDITIONS), true)
     .setAllowInvalid(false)
@@ -102,52 +88,45 @@ function addConditionDropdown(sheet) {
   range.setDataValidation(rule);
 }
 
-/**
- * Refreshes pricing information across all set sheets.
- */
 function updateAllSetSheets() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  for (const sheet of getActiveSets()) {
+  ss.getSheets().forEach(sheet => {
+    if (EXCLUDED_SHEETS.includes(sheet.getName())) return;
+
     const data = sheet.getDataRange().getValues();
     const priceValues = [];
     const totalFormulas = [];
 
     for (let i = 1; i < data.length; i++) {
       const cardId = data[i][COLS.CARD_ID - 1];
-      const condition = data[i][COLS.CONDITION - 1]?.trim() || "Near Mint";
-
+      const condition = (data[i][COLS.CONDITION - 1] || "Near Mint").trim();
       if (!cardId) {
         priceValues.push([""]);
         totalFormulas.push([""]);
         continue;
       }
 
-      const url = `https://api.pokemontcg.io/v2/cards/${cardId}`;
-      const options = {
-        method: 'get',
-        headers: { 'X-Api-Key': API_KEY }
-      };
-
       try {
-        const response = UrlFetchApp.fetch(url, options);
-        const card = JSON.parse(response.getContentText()).data;
-        const priceUSD = card.tcgplayer?.prices?.normal?.market || card.tcgplayer?.prices?.holofoil?.market || 0;
-        const basePriceGBP = priceUSD * USD_TO_GBP;
-        const multiplier = CONDITIONS[condition] || 1;
-        const adjustedPrice = basePriceGBP * multiplier;
-
-        priceValues.push([adjustedPrice]);
-        totalFormulas.push([`=A${i + 1}*${colToLetter(COLS.PRICE)}${i + 1}`]);
-      } catch (e) {
+        const url = `https://api.pokemontcg.io/v2/cards/${cardId}`;
+        const options = { headers: { 'X-Api-Key': API_KEY } };
+        const json = JSON.parse(UrlFetchApp.fetch(url, options).getContentText());
+        const card = json.data;
+        const cardmarket = card.cardmarket?.prices || {};
+        const priceEUR = cardmarket.averageSellPrice || 0;
+        const baseGBP = priceEUR * EUR_TO_GBP;
+        const finalGBP = baseGBP * (CONDITIONS[condition] || 1);
+        priceValues.push([finalGBP]);
+        const r = i + 1;
+        totalFormulas.push([`=A${r}*${colToLetter(COLS.PRICE)}${r}`]);
+      } catch {
         priceValues.push(["Error"]);
         totalFormulas.push(["Error"]);
       }
     }
 
-    if (priceValues.length > 0) {
-      sheet.getRange(2, COLS.PRICE, priceValues.length).setValues(priceValues);
+    if (priceValues.length) {
+      sheet.getRange(2, COLS.PRICE, priceValues.length).setValues(priceValues).setNumberFormat("\"\u00a3\"#,##0.00");
       sheet.getRange(2, COLS.TOTAL, totalFormulas.length).setFormulas(totalFormulas);
-      sheet.getRange(2, COLS.PRICE, priceValues.length).setNumberFormat("£#,##0.00");
     }
-  }
+  });
 }
