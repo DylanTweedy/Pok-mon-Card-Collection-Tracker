@@ -1,0 +1,8 @@
+# Ignore Codex secrets
+.codex-secrets.sh
+
+# Node / Python / misc safety
+node_modules/
+.env
+.DS_Store
+*.log
