@@ -114,7 +114,7 @@ function fetchFromPokemonTCGCardmarket(card) {
     const res = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
     const data = JSON.parse(res.getContentText()).data || {};
     const prices = data.cardmarket && data.cardmarket.prices ? data.cardmarket.prices : {};
-    const priceEUR = prices.averageSellPrice || 0;
+    const priceEUR = pickCardmarketLikelyPriceEUR(prices);
     const fx = getFxRate("EUR", "GBP");
     const priceGBP = priceEUR * fx;
 
@@ -128,6 +128,26 @@ function fetchFromPokemonTCGCardmarket(card) {
   } catch (err) {
     return null;
   }
+}
+
+function pickCardmarketLikelyPriceEUR(prices) {
+  const candidates = [
+    prices.averageSellPrice,
+    prices.trendPrice,
+    prices.reverseHoloTrend,
+    prices.lowPrice,
+    prices.average1,
+    prices.average7,
+    prices.average30
+  ].map(toNumber).filter(v => v > 0);
+
+  if (!candidates.length) return 0;
+  if (candidates.length === 1) return candidates[0];
+
+  const median = computeMedian(candidates);
+  const filtered = candidates.filter(v => v >= median * 0.5 && v <= median * 2);
+  const usable = filtered.length ? filtered : candidates;
+  return computeMedian(usable);
 }
 
 function fetchEbayObservation(card) {
