@@ -13,14 +13,8 @@ function test_LogSnapshot() {
   Logger.log("logValueSnapshot completed.");
 }
 
-function test_RefreshPricesAll() {
-  Logger.log("Running refreshPricesAll...");
-  refreshPricesAll();
-  Logger.log("refreshPricesAll completed.");
-}
-
-function test_RefreshPricesOwnedOnly() {
-  Logger.log("Running refreshPricesOwnedOnly...");
-  refreshPricesOwnedOnly();
-  Logger.log("refreshPricesOwnedOnly completed.");
+function test_UpdatePrices() {
+  Logger.log("Running updatePrices...");
+  updatePrices();
+  Logger.log("updatePrices completed.");
 }

@@ -15,7 +15,7 @@ Optional computed columns may be added after column F:
 - ManualPriceGBP
 - EbayPrice
 - PokemonTCGPrice
-- ChosenPrice
+- Last Updated
 - PriceConfidence
 - PriceMethod
 - CardKey
@@ -26,7 +26,7 @@ Hidden technical columns (default hidden):
 - Card ID
 - EbayPrice
 - PokemonTCGPrice
-- ChosenPrice
+- Last Updated
 - PriceConfidence
 - PriceMethod
 - CardKey
@@ -34,8 +34,7 @@ Hidden technical columns (default hidden):
 Layout repair does not rewrite user-entered values in A/B.
 
 ## Menu Actions
-- Refresh Prices (Owned Only): updates computed price fields only where Quantity > 0.
-- Refresh Prices (All): updates computed price fields for every card.
+- Update Prices: prioritizes owned cards and missing data, skips cards updated in last 24h.
 - Update Dashboard: fast, no pricing or CSV export.
 - Export CSV: manual, can be slow.
 - Kubera: Link Assets

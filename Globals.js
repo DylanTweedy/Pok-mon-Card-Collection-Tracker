@@ -38,7 +38,7 @@ const SET_SHEET_OPTIONAL_HEADERS = {
   MANUAL_PRICE: "ManualPriceGBP",
   EBAY_PRICE: "EbayPrice",
   POKEMONTCG_PRICE: "PokemonTCGPrice",
-  CHOSEN_PRICE: "ChosenPrice",
+  LAST_UPDATED: "Last Updated",
   PRICE_CONFIDENCE: "PriceConfidence",
   PRICE_METHOD: "PriceMethod",
   CARD_KEY: "CardKey"

@@ -38,7 +38,7 @@ function buildSetSheetHeaderRow() {
     SET_SHEET_OPTIONAL_HEADERS.MANUAL_PRICE,
     SET_SHEET_OPTIONAL_HEADERS.EBAY_PRICE,
     SET_SHEET_OPTIONAL_HEADERS.POKEMONTCG_PRICE,
-    SET_SHEET_OPTIONAL_HEADERS.CHOSEN_PRICE,
+    SET_SHEET_OPTIONAL_HEADERS.LAST_UPDATED,
     SET_SHEET_OPTIONAL_HEADERS.PRICE_CONFIDENCE,
     SET_SHEET_OPTIONAL_HEADERS.PRICE_METHOD,
     SET_SHEET_OPTIONAL_HEADERS.CARD_KEY,
@@ -111,7 +111,7 @@ function ensureComputedColumns(sheet, options) {
     SET_SHEET_OPTIONAL_HEADERS.MANUAL_PRICE,
     SET_SHEET_OPTIONAL_HEADERS.EBAY_PRICE,
     SET_SHEET_OPTIONAL_HEADERS.POKEMONTCG_PRICE,
-    SET_SHEET_OPTIONAL_HEADERS.CHOSEN_PRICE,
+    SET_SHEET_OPTIONAL_HEADERS.LAST_UPDATED,
     SET_SHEET_OPTIONAL_HEADERS.PRICE_CONFIDENCE,
     SET_SHEET_OPTIONAL_HEADERS.PRICE_METHOD,
     SET_SHEET_OPTIONAL_HEADERS.CARD_KEY
@@ -177,9 +177,9 @@ function applyComputedColumnFormats(sheet, headerIndex) {
     sheet.getRange(2, pokemonIndex, lastRow - 1, 1).setNumberFormat("\u00a3#,##0.00");
   }
 
-  const chosenIndex = getOptionalColumnIndex(headerIndex, SET_SHEET_OPTIONAL_HEADERS.CHOSEN_PRICE);
-  if (chosenIndex) {
-    sheet.getRange(2, chosenIndex, lastRow - 1, 1).setNumberFormat("\u00a3#,##0.00");
+  const lastUpdatedIndex = getOptionalColumnIndex(headerIndex, SET_SHEET_OPTIONAL_HEADERS.LAST_UPDATED);
+  if (lastUpdatedIndex) {
+    sheet.getRange(2, lastUpdatedIndex, lastRow - 1, 1).setNumberFormat("yyyy-mm-dd hh:mm");
   }
 }
 
@@ -187,11 +187,9 @@ function getSourceColumnIndexes(headerIndex) {
   const baseOffset = SET_SHEET_COLUMNS.PRICE;
   const ebayCol = getOptionalColumnIndex(headerIndex, SET_SHEET_OPTIONAL_HEADERS.EBAY_PRICE);
   const pokemonCol = getOptionalColumnIndex(headerIndex, SET_SHEET_OPTIONAL_HEADERS.POKEMONTCG_PRICE);
-  const chosenCol = getOptionalColumnIndex(headerIndex, SET_SHEET_OPTIONAL_HEADERS.CHOSEN_PRICE);
 
   return [
     { column: ebayCol, offset: ebayCol ? ebayCol - baseOffset : null, key: SOURCE_KEYS.EBAY },
-    { column: pokemonCol, offset: pokemonCol ? pokemonCol - baseOffset : null, key: SOURCE_KEYS.POKEMONTCG },
-    { column: chosenCol, offset: chosenCol ? chosenCol - baseOffset : null, key: "chosen" }
+    { column: pokemonCol, offset: pokemonCol ? pokemonCol - baseOffset : null, key: SOURCE_KEYS.POKEMONTCG }
   ];
 }
