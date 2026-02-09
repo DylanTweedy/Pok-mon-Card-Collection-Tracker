@@ -1,5 +1,6 @@
 # Ignore Codex secrets
 .codex-secrets.sh
+.clasp.json
 
 # Node / Python / misc safety
 node_modules/
