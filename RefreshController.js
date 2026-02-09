@@ -1,16 +1,26 @@
 ﻿// RefreshController.js - full refresh pricing
 
-function refreshPricesAll() {
-  refreshPricesInternal(false);
+function refreshPricesAllPokemonTCG() {
+  refreshPricesInternal(false, SOURCE_KEYS.POKEMONTCG);
 }
 
-function refreshPricesOwnedOnly() {
-  refreshPricesInternal(true);
+function refreshPricesOwnedOnlyPokemonTCG() {
+  refreshPricesInternal(true, SOURCE_KEYS.POKEMONTCG);
 }
 
-function refreshPricesInternal(ownedOnly) {
+function refreshPricesAllEbay() {
+  refreshPricesInternal(false, SOURCE_KEYS.EBAY);
+}
+
+function refreshPricesOwnedOnlyEbay() {
+  refreshPricesInternal(true, SOURCE_KEYS.EBAY);
+}
+
+function refreshPricesInternal(ownedOnly, sourceMode) {
   const sheets = getActiveSets();
-  PropertiesService.getDocumentProperties().setProperty("EBAY_FETCH_COUNT", "0");
+  if (sourceMode === SOURCE_KEYS.EBAY) {
+    PropertiesService.getDocumentProperties().setProperty("EBAY_FETCH_COUNT", "0");
+  }
 
   sheets.forEach(sheet => {
     const headerIndex = ensureComputedColumns(sheet, { applyFormats: false });
@@ -68,7 +78,7 @@ function refreshPricesInternal(ownedOnly) {
           qty: qty
         };
 
-        const result = getBestPriceGBP(card);
+        const result = getBestPriceGBP(card, { sourceMode: sourceMode });
         const condition = toTrimmedString(row[SET_SHEET_COLUMNS.CONDITION - 1]) || "Near Mint";
         const multiplier = getConditionMultiplier(condition);
 

@@ -54,32 +54,45 @@ function appendValueLogSnapshot(stats) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName("ValueLog") || ss.insertSheet("ValueLog");
 
-  const header = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), VALUELOG_HEADERS.length)).getValues()[0];
-  const existing = header.filter(Boolean).length ? header : [];
-  const normalized = existing.map(h => String(h));
-  const finalHeader = VALUELOG_HEADERS.slice();
-
-  normalized.forEach(h => {
-    if (finalHeader.indexOf(h) === -1) finalHeader.push(h);
-  });
-
-  if (finalHeader.join("|") !== header.join("|")) {
-    sheet.getRange(1, 1, 1, finalHeader.length).setValues([finalHeader]);
+  const header = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 3)).getValues()[0];
+  const hasHeader = header.filter(Boolean).length > 0;
+  if (!hasHeader) {
+    sheet.getRange(1, 1, 1, 3).setValues([["Timestamp", "Total Cards", "Total Value"]]);
   }
 
-  const row = [
-    new Date(),
-    stats.totalValue || 0,
-    stats.totalCardsOwned || 0,
-    stats.distinctCardsOwned || 0,
-    stats.priceCoveragePct || 0,
-    stats.avgConfidence || 0
-  ];
+  const finalHeader = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  const index = buildHeaderIndex(finalHeader);
+
+  const row = new Array(finalHeader.length).fill("");
+  const timestampIdx = index["timestamp"] || 1;
+  row[timestampIdx - 1] = new Date();
+
+  const totalCardsIdx = index["totalcards"] || index["totalcardsowned"];
+  if (totalCardsIdx) row[totalCardsIdx - 1] = stats.totalCardsOwned || 0;
+
+  const totalValueIdx = index["totalvalue"] || index["totalvaluegbp"];
+  if (totalValueIdx) row[totalValueIdx - 1] = stats.totalValue || 0;
+
+  const distinctIdx = index["distinctcardsowned"];
+  if (distinctIdx) row[distinctIdx - 1] = stats.distinctCardsOwned || 0;
+
+  const coverageIdx = index["pricecoveragepct"];
+  if (coverageIdx) row[coverageIdx - 1] = stats.priceCoveragePct || 0;
+
+  const confidenceIdx = index["avgconfidence"];
+  if (confidenceIdx) row[confidenceIdx - 1] = stats.avgConfidence || 0;
 
   sheet.appendRow(row);
-  sheet.getRange(sheet.getLastRow(), 2, 1, 1).setNumberFormat("\u00a3#,##0.00");
-  sheet.getRange(sheet.getLastRow(), 5, 1, 1).setNumberFormat("0.0");
-  sheet.getRange(sheet.getLastRow(), 6, 1, 1).setNumberFormat("0.00");
+
+  if (totalValueIdx) {
+    sheet.getRange(sheet.getLastRow(), totalValueIdx, 1, 1).setNumberFormat("\u00a3#,##0.00");
+  }
+  if (coverageIdx) {
+    sheet.getRange(sheet.getLastRow(), coverageIdx, 1, 1).setNumberFormat("0.0");
+  }
+  if (confidenceIdx) {
+    sheet.getRange(sheet.getLastRow(), confidenceIdx, 1, 1).setNumberFormat("0.00");
+  }
 }
 
 function upsertValueLogChart(dashboard) {
@@ -90,7 +103,12 @@ function upsertValueLogChart(dashboard) {
   const lastRow = valueLog.getLastRow();
   if (lastRow < 2) return;
 
-  const dataRange = valueLog.getRange(1, 1, lastRow, 2);
+  const header = valueLog.getRange(1, 1, 1, valueLog.getLastColumn()).getValues()[0];
+  const index = buildHeaderIndex(header);
+  const timestampIdx = index["timestamp"] || 1;
+  const totalValueIdx = index["totalvalue"] || index["totalvaluegbp"] || 2;
+
+  const dataRange = valueLog.getRange(1, Math.min(timestampIdx, totalValueIdx), lastRow, Math.abs(totalValueIdx - timestampIdx) + 1);
   const title = "Portfolio Value Over Time";
 
   let existing = null;
@@ -106,7 +124,8 @@ function upsertValueLogChart(dashboard) {
 
   const chart = dashboard.newChart()
     .setChartType(Charts.ChartType.LINE)
-    .addRange(dataRange)
+    .addRange(valueLog.getRange(1, timestampIdx, lastRow, 1))
+    .addRange(valueLog.getRange(1, totalValueIdx, lastRow, 1))
     .setOption("title", title)
     .setOption("legend", { position: "none" })
     .setOption("hAxis", { title: "Date" })

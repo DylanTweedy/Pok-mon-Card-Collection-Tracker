@@ -14,20 +14,25 @@ function getBestPriceGBP(card, options) {
     };
   }
 
-  const cached = getCachedPrice(cardKey);
+  const sourceMode = (options && options.sourceMode) ? options.sourceMode : "both";
+  const cached = getCachedPrice(cardKey, sourceMode);
   if (cached && cached.chosenPriceGBP !== undefined) {
     return cached;
   }
 
   const observations = [];
-  const pokemonObs = fetchFromPokemonTCGCardmarket(card);
-  if (pokemonObs && pokemonObs.priceGBP) observations.push(pokemonObs);
+  if (sourceMode === "both" || sourceMode === SOURCE_KEYS.POKEMONTCG) {
+    const pokemonObs = fetchFromPokemonTCGCardmarket(card);
+    if (pokemonObs && pokemonObs.priceGBP) observations.push(pokemonObs);
+  }
 
-  const ebayObs = fetchEbayObservation(card);
-  if (ebayObs && ebayObs.priceGBP) observations.push(ebayObs);
+  if (sourceMode === "both" || sourceMode === SOURCE_KEYS.EBAY) {
+    const ebayObs = fetchEbayObservation(card);
+    if (ebayObs && ebayObs.priceGBP) observations.push(ebayObs);
+  }
 
   const result = choosePriceFromObservations(observations);
-  setCachedPrice(cardKey, result);
+  setCachedPrice(cardKey, sourceMode, result);
   return result;
 }
 
@@ -174,9 +179,9 @@ function getFxRate(fromCurrency, toCurrency) {
   return rate;
 }
 
-function getCachedPrice(cardKey) {
+function getCachedPrice(cardKey, sourceMode) {
   const cache = CacheService.getDocumentCache();
-  const key = buildPriceCacheKey(cardKey);
+  const key = buildPriceCacheKey(cardKey, sourceMode);
   const cached = cache.get(key);
   if (cached) return JSON.parse(cached);
 
@@ -190,17 +195,18 @@ function getCachedPrice(cardKey) {
   return null;
 }
 
-function setCachedPrice(cardKey, result) {
+function setCachedPrice(cardKey, sourceMode, result) {
   const cache = CacheService.getDocumentCache();
-  const key = buildPriceCacheKey(cardKey);
+  const key = buildPriceCacheKey(cardKey, sourceMode);
   const payload = JSON.stringify(result);
   cache.put(key, payload, PRICE_CACHE_TTL_SECONDS);
   PropertiesService.getDocumentProperties().setProperty(key, payload);
 }
 
-function buildPriceCacheKey(cardKey) {
+function buildPriceCacheKey(cardKey, sourceMode) {
   const safe = Utilities.base64EncodeWebSafe(cardKey).substring(0, 80);
-  return `PRICE_${safe}`;
+  const mode = sourceMode || "both";
+  return `PRICE_${mode}_${safe}`;
 }
 
 function getScriptPropertyValue(name) {
