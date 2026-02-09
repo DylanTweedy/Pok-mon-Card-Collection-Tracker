@@ -185,6 +185,59 @@ function getEbayPriceGBP(card) {
   return 0;
 }
 
+function getPokemonTCGSignals(cardId, cardKey) {
+  const cached = getCachedSignals(cardKey);
+  if (cached) return cached;
+
+  try {
+    const url = `https://api.pokemontcg.io/v2/cards/${cardId}`;
+    const res = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+    const data = JSON.parse(res.getContentText()).data || {};
+    const prices = data.cardmarket && data.cardmarket.prices ? data.cardmarket.prices : {};
+
+    const fx = getFxRate("EUR", "GBP");
+    const signals = {
+      avg: toNumber(prices.averageSellPrice) * fx,
+      trend: toNumber(prices.trendPrice) * fx,
+      low: toNumber(prices.lowPrice) * fx,
+      rev: toNumber(prices.reverseHoloTrend) * fx,
+      avg1: toNumber(prices.average1) * fx,
+      avg7: toNumber(prices.average7) * fx,
+      avg30: toNumber(prices.average30) * fx
+    };
+
+    const candidates = [signals.avg, signals.trend, signals.low, signals.rev, signals.avg1, signals.avg7, signals.avg30]
+      .filter(v => v > 0);
+    signals.best = candidates.length ? computeMedian(candidates) : 0;
+
+    setCachedSignals(cardKey, signals);
+    return signals;
+  } catch (err) {
+    return null;
+  }
+}
+
+function getCachedSignals(cardKey) {
+  const key = `SIG_${Utilities.base64EncodeWebSafe(cardKey).substring(0, 80)}`;
+  const cache = CacheService.getDocumentCache();
+  const cached = cache.get(key);
+  if (cached) return JSON.parse(cached);
+
+  const stored = PropertiesService.getDocumentProperties().getProperty(key);
+  if (stored) {
+    cache.put(key, stored, PRICE_CACHE_TTL_SECONDS);
+    return JSON.parse(stored);
+  }
+  return null;
+}
+
+function setCachedSignals(cardKey, signals) {
+  const key = `SIG_${Utilities.base64EncodeWebSafe(cardKey).substring(0, 80)}`;
+  const payload = JSON.stringify(signals);
+  CacheService.getDocumentCache().put(key, payload, PRICE_CACHE_TTL_SECONDS);
+  PropertiesService.getDocumentProperties().setProperty(key, payload);
+}
+
 function getCachedSourcePrice(cardKey, source) {
   const cache = CacheService.getDocumentCache();
   const key = `SRC_${source}_${Utilities.base64EncodeWebSafe(cardKey).substring(0, 80)}`;
