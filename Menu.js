@@ -5,8 +5,9 @@ function onOpen() {
   const ui = SpreadsheetApp.getUi();
   ui.createMenu("Pokémon Cards 🃏")
     .addItem("Create Set Sheet", "showSetSheetPrompt")
-    .addItem("Refresh Prices (Owned Only)", "refreshPricesOwnedOnly")
-    .addItem("Refresh Prices (All)", "refreshPricesAll")
+    .addItem("🧹 Repair Layout / Hide Columns", "repairLayoutAllSheets")
+    .addItem("💷 Refresh Prices (Owned Only)", "refreshPricesOwnedOnly")
+    .addItem("💷 Refresh Prices (All)", "refreshPricesAll")
     .addItem("Update Dashboard", "updateDashboard")
     .addItem("Export CSV", "exportSetsToCSV")
     .addItem("Kubera: Link Assets", "kuberaLinkAssets")

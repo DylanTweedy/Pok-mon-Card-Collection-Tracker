@@ -10,14 +10,13 @@ function refreshPricesOwnedOnly() {
 
 function refreshPricesInternal(ownedOnly) {
   const sheets = getActiveSets();
+  PropertiesService.getDocumentProperties().setProperty("EBAY_FETCH_COUNT", "0");
 
   sheets.forEach(sheet => {
-    const headerIndex = ensureComputedColumns(sheet);
-    if (typeof applySetSheetStyling === "function") {
-      applySetSheetStyling(sheet);
-    }
-    if (typeof addConditionDropdown === "function") {
-      addConditionDropdown(sheet);
+    const headerIndex = ensureComputedColumns(sheet, { applyFormats: false });
+    if (getFlag("LAYOUT_REPAIR_ON_REFRESH", false)) {
+      applySetSheetLayout(sheet);
+      ensureHiddenTechnicalColumns(sheet);
     }
 
     const lastRow = sheet.getLastRow();
@@ -26,12 +25,12 @@ function refreshPricesInternal(ownedOnly) {
 
     const manualIndex = getOptionalColumnIndex(headerIndex, SET_SHEET_OPTIONAL_HEADERS.MANUAL_PRICE);
     const cardIdIndex = getOptionalColumnIndex(headerIndex, SET_SHEET_OPTIONAL_HEADERS.CARD_ID);
-    const priceConfidenceIndex = getOptionalColumnIndex(headerIndex, SET_SHEET_OPTIONAL_HEADERS.PRICE_CONFIDENCE);
-    const priceMethodIndex = getOptionalColumnIndex(headerIndex, SET_SHEET_OPTIONAL_HEADERS.PRICE_METHOD);
-    const cardKeyIndex = getOptionalColumnIndex(headerIndex, SET_SHEET_OPTIONAL_HEADERS.CARD_KEY);
     const ebayIndex = getOptionalColumnIndex(headerIndex, SET_SHEET_OPTIONAL_HEADERS.EBAY_PRICE);
     const pokemonIndex = getOptionalColumnIndex(headerIndex, SET_SHEET_OPTIONAL_HEADERS.POKEMONTCG_PRICE);
     const chosenIndex = getOptionalColumnIndex(headerIndex, SET_SHEET_OPTIONAL_HEADERS.CHOSEN_PRICE);
+    const priceConfidenceIndex = getOptionalColumnIndex(headerIndex, SET_SHEET_OPTIONAL_HEADERS.PRICE_CONFIDENCE);
+    const priceMethodIndex = getOptionalColumnIndex(headerIndex, SET_SHEET_OPTIONAL_HEADERS.PRICE_METHOD);
+    const cardKeyIndex = getOptionalColumnIndex(headerIndex, SET_SHEET_OPTIONAL_HEADERS.CARD_KEY);
 
     const data = sheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
     const priceValues = [];

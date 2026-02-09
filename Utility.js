@@ -34,8 +34,16 @@ function normalizeHeaderValue(value) {
 
 function buildSetSheetHeaderRow() {
   const base = SET_SHEET_BASE_HEADERS.slice();
-  base.push(SET_SHEET_OPTIONAL_HEADERS.CARD_ID);
-  return base;
+  return base.concat([
+    SET_SHEET_OPTIONAL_HEADERS.MANUAL_PRICE,
+    SET_SHEET_OPTIONAL_HEADERS.EBAY_PRICE,
+    SET_SHEET_OPTIONAL_HEADERS.POKEMONTCG_PRICE,
+    SET_SHEET_OPTIONAL_HEADERS.CHOSEN_PRICE,
+    SET_SHEET_OPTIONAL_HEADERS.PRICE_CONFIDENCE,
+    SET_SHEET_OPTIONAL_HEADERS.PRICE_METHOD,
+    SET_SHEET_OPTIONAL_HEADERS.CARD_KEY,
+    SET_SHEET_OPTIONAL_HEADERS.CARD_ID
+  ]);
 }
 
 function parseSetRow(row, headerIndex) {
@@ -87,7 +95,8 @@ function getOptionalColumnIndex(headerIndex, headerName) {
   return headerIndex[key] || 0;
 }
 
-function ensureComputedColumns(sheet) {
+function ensureComputedColumns(sheet, options) {
+  const applyFormats = options && options.applyFormats;
   const lastCol = sheet.getLastColumn();
   const header = sheet.getRange(1, 1, 1, Math.max(lastCol, SET_SHEET_COLUMNS.TOTAL)).getValues()[0];
   const updated = header.slice();
@@ -114,15 +123,15 @@ function ensureComputedColumns(sheet) {
     }
   });
 
-  const existingNormalized = header.map(normalizeHeaderValue);
   const missing = updated.slice(header.length);
-
-  if (missing.length) {
+  if (applyFormats && missing.length) {
     sheet.getRange(1, header.length + 1, 1, missing.length).setValues([missing]);
   }
 
   const headerIndex = buildHeaderIndex(sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]);
-  applyComputedColumnFormats(sheet, headerIndex);
+  if (applyFormats) {
+    applyComputedColumnFormats(sheet, headerIndex);
+  }
   return headerIndex;
 }
 

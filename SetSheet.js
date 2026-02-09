@@ -49,8 +49,9 @@ function createSetSheet(setId) {
     sheet.getRange(2, 1, rows.length, rows[0].length).setValues(rows);
   }
 
-  ensureComputedColumns(sheet);
-  applySetSheetStyling(sheet);
+  ensureComputedColumns(sheet, { applyFormats: true });
+  applySetSheetLayout(sheet);
+  ensureHiddenTechnicalColumns(sheet);
   addConditionDropdown(sheet);
   const numRows = sheet.getLastRow() - 1;
   if (numRows > 0) {

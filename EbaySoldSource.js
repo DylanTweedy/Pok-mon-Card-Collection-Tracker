@@ -6,8 +6,12 @@ function fetchEbaySoldMedianGBP(card) {
   if (toNumber(card.qty) <= 0) return null;
 
   const cacheKey = buildEbayCacheKey(card.cardKey);
-  const cached = getCachedPrice(cacheKey);
+  const cached = getEbayCachedPrice(cacheKey);
   if (cached && cached.chosenPriceGBP !== undefined) return cached;
+
+  if (!consumeEbayBudget()) {
+    return null;
+  }
 
   const lookbackDays = parseInt(getOptionalSecret("EBAY_LOOKBACK_DAYS", "30"), 10) || 30;
   const minSamples = parseInt(getOptionalSecret("EBAY_MIN_SAMPLES", "3"), 10) || 3;
@@ -35,7 +39,7 @@ function fetchEbaySoldMedianGBP(card) {
       reason: `eBay sold listings (${filtered.length} samples)`
     };
 
-    setCachedPrice(cacheKey, result);
+    setEbayCachedPrice(cacheKey, result);
     return result;
   } catch (err) {
     return null;
@@ -79,4 +83,38 @@ function trimOutliers(values, fraction) {
 function buildEbayCacheKey(cardKey) {
   const safe = Utilities.base64EncodeWebSafe(cardKey).substring(0, 80);
   return `EBAY_${safe}`;
+}
+
+function getEbayCachedPrice(cacheKey) {
+  const hours = parseInt(getOptionalSecret("EBAY_CACHE_HOURS", "24"), 10) || 24;
+  const ttl = hours * 60 * 60;
+  const cache = CacheService.getDocumentCache();
+  const cached = cache.get(cacheKey);
+  if (cached) return JSON.parse(cached);
+
+  const props = PropertiesService.getDocumentProperties();
+  const stored = props.getProperty(cacheKey);
+  if (stored) {
+    cache.put(cacheKey, stored, ttl);
+    return JSON.parse(stored);
+  }
+  return null;
+}
+
+function setEbayCachedPrice(cacheKey, result) {
+  const hours = parseInt(getOptionalSecret("EBAY_CACHE_HOURS", "24"), 10) || 24;
+  const ttl = hours * 60 * 60;
+  const payload = JSON.stringify(result);
+  CacheService.getDocumentCache().put(cacheKey, payload, ttl);
+  PropertiesService.getDocumentProperties().setProperty(cacheKey, payload);
+}
+
+function consumeEbayBudget() {
+  const maxFetch = parseInt(getOptionalSecret("EBAY_MAX_FETCH_PER_RUN", "10"), 10) || 10;
+  const props = PropertiesService.getDocumentProperties();
+  const count = parseInt(props.getProperty("EBAY_FETCH_COUNT") || "0", 10);
+  if (count >= maxFetch) return false;
+  props.setProperty("EBAY_FETCH_COUNT", String(count + 1));
+  Utilities.sleep(250);
+  return true;
 }

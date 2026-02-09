@@ -13,6 +13,11 @@ function updateDashboard() {
 
   dashboard.getRange("A2").setValue("Last updated: " + new Date().toLocaleString())
     .setFontStyle("italic").setFontColor("#aaaaaa").setFontSize(10);
+  const lastRefresh = PropertiesService.getDocumentProperties().getProperty("LAST_REFRESH_TS");
+  if (lastRefresh) {
+    dashboard.getRange("A3").setValue("Last price refresh: " + new Date(lastRefresh).toLocaleString())
+      .setFontStyle("italic").setFontColor("#aaaaaa").setFontSize(10);
+  }
 
   dashboard.getRange("A4").setValue("Summary")
     .setFontWeight("bold").setFontSize(14).setFontColor("#ffffff").setBackground("#222222");
@@ -20,6 +25,8 @@ function updateDashboard() {
   dashboard.getRange("B5").setNumberFormat("\u00a3#,##0.00");
   dashboard.getRange("A6").setValue("Total Cards Owned:").setFontWeight("bold");
   dashboard.getRange("B6").setNumberFormat("0");
+  dashboard.getRange("A7").setValue("Price Coverage:").setFontWeight("bold");
+  dashboard.getRange("B7").setNumberFormat("0.0%");
 
   const setSheets = getActiveSets();
   let totalValue = 0;
@@ -77,6 +84,8 @@ function updateDashboard() {
 
   dashboard.getRange("B5").setValue(totalValue);
   dashboard.getRange("B6").setValue(totalOwned);
+  const coveragePct = distinctOwned ? (ownedWithPrice / distinctOwned) : 0;
+  dashboard.getRange("B7").setValue(coveragePct);
 
   const setTableStart = 9;
   dashboard.getRange(`A${setTableStart - 1}:F${setTableStart - 1}`).merge()
@@ -121,13 +130,13 @@ function updateDashboard() {
   dashboard.setColumnWidths(5, 1, 140);
   dashboard.setHiddenGridlines(true);
 
-  const coveragePct = distinctOwned ? (ownedWithPrice / distinctOwned) * 100 : 0;
+  const coveragePctForLog = distinctOwned ? (ownedWithPrice / distinctOwned) * 100 : 0;
   const avgConfidence = confidenceCount ? (confidenceSum / confidenceCount) : 0;
   logValueSnapshot({
     totalValue: totalValue,
     totalCardsOwned: totalOwned,
     distinctCardsOwned: distinctOwned,
-    priceCoveragePct: coveragePct,
+    priceCoveragePct: coveragePctForLog,
     avgConfidence: avgConfidence
   });
 
