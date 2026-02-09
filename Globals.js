@@ -39,7 +39,14 @@ const SET_SHEET_OPTIONAL_HEADERS = {
   MANUAL_PRICE: "ManualPriceGBP",
   PRICE_CONFIDENCE: "PriceConfidence",
   PRICE_METHOD: "PriceMethod",
-  CARD_KEY: "CardKey"
+  CARD_KEY: "CardKey",
+  SOURCE_POKEMONTCG: "PriceSource_PokemonTCG",
+  SOURCE_TCGPLAYER: "PriceSource_TCGPlayer"
+};
+
+const SOURCE_KEYS = {
+  POKEMONTCG: "PokemonTCGCardmarket",
+  TCGPLAYER: "TCGPlayer"
 };
 
 const SET_SHEET_REQUIRED_HEADERS = [

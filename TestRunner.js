@@ -7,20 +7,20 @@ function test_UpdateDashboard() {
   Logger.log("updateDashboard completed.");
 }
 
-function test_UpdateAllSetSheets() {
-  Logger.log("Running updateAllSetSheets...");
-  updateAllSetSheets();
-  Logger.log("updateAllSetSheets completed.");
-}
-
 function test_LogSnapshot() {
   Logger.log("Running logValueSnapshot...");
   logValueSnapshot();
   Logger.log("logValueSnapshot completed.");
 }
 
-function test_RefreshPrices() {
-  Logger.log("Running refreshPrices...");
-  refreshPrices();
-  Logger.log("refreshPrices completed (chunked).");
+function test_RefreshPricesAll() {
+  Logger.log("Running refreshPricesAll...");
+  refreshPricesAll();
+  Logger.log("refreshPricesAll completed.");
+}
+
+function test_RefreshPricesOwnedOnly() {
+  Logger.log("Running refreshPricesOwnedOnly...");
+  refreshPricesOwnedOnly();
+  Logger.log("refreshPricesOwnedOnly completed.");
 }

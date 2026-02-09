@@ -21,7 +21,7 @@ function getBestPriceGBP(card, options) {
 
   const sources = [
     fetchFromPokemonTCGCardmarket,
-    fetchFromTCGPlayerStub
+    fetchFromPokemonTCGTcgplayer
   ];
 
   const observations = [];
@@ -123,7 +123,7 @@ function fetchFromPokemonTCGCardmarket(card) {
 
     if (!priceGBP) return null;
     return {
-      source: "PokemonTCGCardmarket",
+      source: SOURCE_KEYS.POKEMONTCG,
       priceGBP: priceGBP,
       ts: new Date().toISOString(),
       confidence: 0.7
@@ -133,11 +133,43 @@ function fetchFromPokemonTCGCardmarket(card) {
   }
 }
 
-function fetchFromTCGPlayerStub(card) {
-  const apiKey = getScriptPropertyValue("TCGPLAYER_API_KEY");
+function fetchFromPokemonTCGTcgplayer(card) {
+  if (!card.cardId) return null;
+  const apiKey = getPokemonTcgApiKey();
   if (!apiKey) return null;
 
-  return null;
+  try {
+    const url = `https://api.pokemontcg.io/v2/cards/${card.cardId}`;
+    const options = { headers: { "X-Api-Key": apiKey } };
+    const res = UrlFetchApp.fetch(url, options);
+    const data = JSON.parse(res.getContentText()).data || {};
+    const prices = data.tcgplayer && data.tcgplayer.prices ? data.tcgplayer.prices : {};
+    const priceUSD = pickTcgplayerPriceUSD(prices);
+    const fx = getFxRate("USD", "GBP");
+    const priceGBP = priceUSD * fx;
+
+    if (!priceGBP) return null;
+    return {
+      source: SOURCE_KEYS.TCGPLAYER,
+      priceGBP: priceGBP,
+      ts: new Date().toISOString(),
+      confidence: 0.75
+    };
+  } catch (err) {
+    return null;
+  }
+}
+
+function pickTcgplayerPriceUSD(prices) {
+  const types = Object.keys(prices || {});
+  for (let i = 0; i < types.length; i++) {
+    const entry = prices[types[i]];
+    if (!entry) continue;
+    if (entry.market) return entry.market;
+    if (entry.mid) return entry.mid;
+    if (entry.low) return entry.low;
+  }
+  return 0;
 }
 
 function getPokemonTcgApiKey() {

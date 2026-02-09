@@ -1,6 +1,6 @@
 ﻿// === SetSheet.js === (Handles creation and styling of individual set sheets)
 
-function createOrUpdateSetSheet(setId) {
+function createSetSheet(setId) {
   const url = `https://api.pokemontcg.io/v2/cards?q=set.id:${setId}&orderBy=number&pageSize=250`;
   const options = { headers: { "X-Api-Key": API_KEY } };
   let cards = [];
@@ -23,8 +23,7 @@ function createOrUpdateSetSheet(setId) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let sheet = ss.getSheetByName(sheetName);
   if (sheet) {
-    ensureComputedColumns(sheet);
-    SpreadsheetApp.getUi().alert(`Sheet "${sheetName}" already exists. No rebuild performed.`);
+    SpreadsheetApp.getUi().alert(`Sheet "${sheetName}" already exists. No changes were made.`);
     return;
   }
 

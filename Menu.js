@@ -4,12 +4,11 @@
 function onOpen() {
   const ui = SpreadsheetApp.getUi();
   ui.createMenu("Pokémon Cards 🃏")
-    .addItem("Create/Update Set Sheet", "showSetSheetPrompt")
-    .addItem("Refresh Prices (Chunked)", "refreshPrices")
-    .addItem("Continue Price Refresh", "refreshPricesChunked")
+    .addItem("Create Set Sheet", "showSetSheetPrompt")
+    .addItem("Refresh Prices (All)", "refreshPricesAll")
+    .addItem("Refresh Prices (Owned Only)", "refreshPricesOwnedOnly")
     .addItem("Update Dashboard", "updateDashboard")
     .addItem("Export CSV", "exportSetsToCSV")
-    .addItem("Export CSV (If Stale)", "exportSetsToCSVIfStale")
     .addToUi();
 }
 
@@ -22,7 +21,7 @@ function showSetSheetPrompt() {
   if (response.getSelectedButton() === ui.Button.OK) {
     const id = response.getResponseText().trim();
     if (id) {
-      createOrUpdateSetSheet(id);
+      createSetSheet(id);
     }
   }
 }

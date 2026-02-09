@@ -84,6 +84,8 @@ function updateDashboard() {
   dashboard.getRange(setTableStart, 1, 1, 5).setValues([setSummary[0]]).setFontWeight("bold").setBackground("#1f1f1f").setFontColor("#ffffff");
   if (setSummary.length > 1) {
     dashboard.getRange(setTableStart + 1, 1, setSummary.length - 1, 5).setValues(setSummary.slice(1));
+    dashboard.getRange(setTableStart + 1, 2, setSummary.length - 1, 1).setNumberFormat("0");
+    dashboard.getRange(setTableStart + 1, 3, setSummary.length - 1, 1).setNumberFormat("0");
     dashboard.getRange(setTableStart + 1, 4, setSummary.length - 1, 1).setNumberFormat("0.0%");
     dashboard.getRange(setTableStart + 1, 5, setSummary.length - 1, 1).setNumberFormat("\u00a3#,##0.00");
     if (typeof applyRowBanding === "function") {

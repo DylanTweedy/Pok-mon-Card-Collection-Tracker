@@ -102,7 +102,9 @@ function ensureComputedColumns(sheet) {
     SET_SHEET_OPTIONAL_HEADERS.MANUAL_PRICE,
     SET_SHEET_OPTIONAL_HEADERS.PRICE_CONFIDENCE,
     SET_SHEET_OPTIONAL_HEADERS.PRICE_METHOD,
-    SET_SHEET_OPTIONAL_HEADERS.CARD_KEY
+    SET_SHEET_OPTIONAL_HEADERS.CARD_KEY,
+    SET_SHEET_OPTIONAL_HEADERS.SOURCE_POKEMONTCG,
+    SET_SHEET_OPTIONAL_HEADERS.SOURCE_TCGPLAYER
   ];
 
   optional.forEach(name => {
@@ -151,4 +153,25 @@ function applyComputedColumnFormats(sheet, headerIndex) {
   if (confidenceIndex) {
     sheet.getRange(2, confidenceIndex, lastRow - 1, 1).setNumberFormat("0.00");
   }
+
+  const sourcePokemonIndex = getOptionalColumnIndex(headerIndex, SET_SHEET_OPTIONAL_HEADERS.SOURCE_POKEMONTCG);
+  if (sourcePokemonIndex) {
+    sheet.getRange(2, sourcePokemonIndex, lastRow - 1, 1).setNumberFormat("\u00a3#,##0.00");
+  }
+
+  const sourceTcgIndex = getOptionalColumnIndex(headerIndex, SET_SHEET_OPTIONAL_HEADERS.SOURCE_TCGPLAYER);
+  if (sourceTcgIndex) {
+    sheet.getRange(2, sourceTcgIndex, lastRow - 1, 1).setNumberFormat("\u00a3#,##0.00");
+  }
+}
+
+function getSourceColumnIndexes(headerIndex) {
+  const pokemonCol = getOptionalColumnIndex(headerIndex, SET_SHEET_OPTIONAL_HEADERS.SOURCE_POKEMONTCG);
+  const tcgCol = getOptionalColumnIndex(headerIndex, SET_SHEET_OPTIONAL_HEADERS.SOURCE_TCGPLAYER);
+  const baseOffset = SET_SHEET_COLUMNS.PRICE;
+
+  return [
+    { column: pokemonCol, offset: pokemonCol ? pokemonCol - baseOffset : null },
+    { column: tcgCol, offset: tcgCol ? tcgCol - baseOffset : null }
+  ];
 }
