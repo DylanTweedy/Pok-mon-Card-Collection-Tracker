@@ -19,6 +19,7 @@ function refreshPricesInternal(ownedOnly) {
     if (typeof addConditionDropdown === "function") {
       addConditionDropdown(sheet);
     }
+
     const lastRow = sheet.getLastRow();
     const lastCol = sheet.getLastColumn();
     if (lastRow < 2) return;
@@ -28,65 +29,84 @@ function refreshPricesInternal(ownedOnly) {
     const priceConfidenceIndex = getOptionalColumnIndex(headerIndex, SET_SHEET_OPTIONAL_HEADERS.PRICE_CONFIDENCE);
     const priceMethodIndex = getOptionalColumnIndex(headerIndex, SET_SHEET_OPTIONAL_HEADERS.PRICE_METHOD);
     const cardKeyIndex = getOptionalColumnIndex(headerIndex, SET_SHEET_OPTIONAL_HEADERS.CARD_KEY);
-    const sourceColumns = getSourceColumnIndexes(headerIndex);
+    const ebayIndex = getOptionalColumnIndex(headerIndex, SET_SHEET_OPTIONAL_HEADERS.EBAY_PRICE);
+    const pokemonIndex = getOptionalColumnIndex(headerIndex, SET_SHEET_OPTIONAL_HEADERS.POKEMONTCG_PRICE);
+    const chosenIndex = getOptionalColumnIndex(headerIndex, SET_SHEET_OPTIONAL_HEADERS.CHOSEN_PRICE);
 
     const data = sheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
-    const colStart = SET_SHEET_COLUMNS.PRICE - 1;
+    const priceValues = [];
+    const totalValues = [];
+    const ebayValues = ebayIndex ? [] : null;
+    const pokemonValues = pokemonIndex ? [] : null;
+    const chosenValues = chosenIndex ? [] : null;
+    const confidenceValues = priceConfidenceIndex ? [] : null;
+    const methodValues = priceMethodIndex ? [] : null;
+    const cardKeyValues = cardKeyIndex ? [] : null;
 
     for (let i = 0; i < data.length; i++) {
       const row = data[i];
       const name = toTrimmedString(row[SET_SHEET_COLUMNS.NAME - 1]);
-      if (!name) continue;
-
       const qty = toNumber(row[SET_SHEET_COLUMNS.QUANTITY - 1]);
-      if (ownedOnly && qty <= 0) continue;
 
-      const cardKey = getCardKey(sheet.getName(), row, headerIndex);
-      const card = {
-        cardKey: cardKey,
-        manualPrice: manualIndex ? row[manualIndex - 1] : 0,
-        cardId: cardIdIndex ? toTrimmedString(row[cardIdIndex - 1]) : "",
-        name: name,
-        rarity: toTrimmedString(row[SET_SHEET_COLUMNS.RARITY - 1])
-      };
+      let chosenPrice = toNumber(row[SET_SHEET_COLUMNS.PRICE - 1]);
+      let total = toNumber(row[SET_SHEET_COLUMNS.TOTAL - 1]);
+      let ebayPrice = ebayIndex ? toNumber(row[ebayIndex - 1]) : "";
+      let pokemonPrice = pokemonIndex ? toNumber(row[pokemonIndex - 1]) : "";
+      let chosenOverride = chosenIndex ? toNumber(row[chosenIndex - 1]) : "";
+      let confidence = priceConfidenceIndex ? toNumber(row[priceConfidenceIndex - 1]) : "";
+      let method = priceMethodIndex ? row[priceMethodIndex - 1] : "";
+      let cardKey = cardKeyIndex ? row[cardKeyIndex - 1] : "";
 
-      const result = getBestPriceGBP(card);
-      const chosenPrice = result.chosenPriceGBP;
-      const condition = toTrimmedString(row[SET_SHEET_COLUMNS.CONDITION - 1]) || "Near Mint";
-      const multiplier = getConditionMultiplier(condition);
-      const existingPrice = toNumber(row[SET_SHEET_COLUMNS.PRICE - 1]);
-      const effectivePrice = (chosenPrice !== null && chosenPrice !== undefined) ? chosenPrice : existingPrice;
+      if (name && (!ownedOnly || qty > 0)) {
+        const key = getCardKey(sheet.getName(), row, headerIndex);
+        const card = {
+          cardKey: key,
+          manualPrice: manualIndex ? row[manualIndex - 1] : 0,
+          cardId: cardIdIndex ? toTrimmedString(row[cardIdIndex - 1]) : "",
+          name: name,
+          rarity: toTrimmedString(row[SET_SHEET_COLUMNS.RARITY - 1]),
+          setName: sheet.getName(),
+          qty: qty
+        };
 
-      const updateRow = row.slice(colStart);
-      if (chosenPrice !== null && chosenPrice !== undefined) {
-        updateRow[0] = chosenPrice;
-      }
-      updateRow[1] = qty ? qty * effectivePrice * multiplier : 0;
+        const result = getBestPriceGBP(card);
+        const condition = toTrimmedString(row[SET_SHEET_COLUMNS.CONDITION - 1]) || "Near Mint";
+        const multiplier = getConditionMultiplier(condition);
 
-      if (priceConfidenceIndex) {
-        updateRow[priceConfidenceIndex - SET_SHEET_COLUMNS.PRICE] = result.confidence || 0;
-      }
-      if (priceMethodIndex) {
-        updateRow[priceMethodIndex - SET_SHEET_COLUMNS.PRICE] = result.method || "";
-      }
-      if (cardKeyIndex) {
-        updateRow[cardKeyIndex - SET_SHEET_COLUMNS.PRICE] = cardKey;
-      }
-
-      if (result.observations && result.observations.length) {
-        if (sourceColumns[0].offset !== null) {
-          updateRow[sourceColumns[0].offset] = getSourcePrice(result.observations, SOURCE_KEYS.POKEMONTCG);
+        if (result.chosenPriceGBP !== null && result.chosenPriceGBP !== undefined) {
+          chosenPrice = result.chosenPriceGBP;
         }
-        if (sourceColumns[1].offset !== null) {
-          updateRow[sourceColumns[1].offset] = getSourcePrice(result.observations, SOURCE_KEYS.TCGPLAYER);
+        total = qty ? qty * chosenPrice * multiplier : 0;
+
+        if (priceConfidenceIndex) confidence = result.confidence || 0;
+        if (priceMethodIndex) method = result.method || "";
+        if (cardKeyIndex) cardKey = key;
+        if (chosenIndex) chosenOverride = chosenPrice;
+
+        if (result.observations && result.observations.length) {
+          if (ebayIndex) ebayPrice = getSourcePrice(result.observations, SOURCE_KEYS.EBAY);
+          if (pokemonIndex) pokemonPrice = getSourcePrice(result.observations, SOURCE_KEYS.POKEMONTCG);
         }
       }
 
-      data[i].splice(colStart, updateRow.length, ...updateRow);
+      priceValues.push([chosenPrice]);
+      totalValues.push([total]);
+      if (ebayValues) ebayValues.push([ebayPrice]);
+      if (pokemonValues) pokemonValues.push([pokemonPrice]);
+      if (chosenValues) chosenValues.push([chosenOverride]);
+      if (confidenceValues) confidenceValues.push([confidence]);
+      if (methodValues) methodValues.push([method]);
+      if (cardKeyValues) cardKeyValues.push([cardKey]);
     }
 
-    const updated = data.map(row => row.slice(colStart));
-    sheet.getRange(2, SET_SHEET_COLUMNS.PRICE, updated.length, updated[0].length).setValues(updated);
+    sheet.getRange(2, SET_SHEET_COLUMNS.PRICE, priceValues.length, 1).setValues(priceValues);
+    sheet.getRange(2, SET_SHEET_COLUMNS.TOTAL, totalValues.length, 1).setValues(totalValues);
+    if (ebayValues) sheet.getRange(2, ebayIndex, ebayValues.length, 1).setValues(ebayValues);
+    if (pokemonValues) sheet.getRange(2, pokemonIndex, pokemonValues.length, 1).setValues(pokemonValues);
+    if (chosenValues) sheet.getRange(2, chosenIndex, chosenValues.length, 1).setValues(chosenValues);
+    if (confidenceValues) sheet.getRange(2, priceConfidenceIndex, confidenceValues.length, 1).setValues(confidenceValues);
+    if (methodValues) sheet.getRange(2, priceMethodIndex, methodValues.length, 1).setValues(methodValues);
+    if (cardKeyValues) sheet.getRange(2, cardKeyIndex, cardKeyValues.length, 1).setValues(cardKeyValues);
   });
 
   PropertiesService.getDocumentProperties().setProperty("LAST_REFRESH_TS", new Date().toISOString());

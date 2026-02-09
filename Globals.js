@@ -1,9 +1,8 @@
-const API_KEY = "your-api-key-here";
 const USD_TO_GBP = 0.78;
 const EUR_TO_GBP = 0.85;
 
 const FX_CACHE_TTL_SECONDS = 60 * 60 * 24;
-const PRICE_CACHE_TTL_SECONDS = 60 * 60 * 8;
+const PRICE_CACHE_TTL_SECONDS = 60 * 60 * 24;
 const REFRESH_BATCH_SIZE = 100;
 const REFRESH_MAX_MS = 5.5 * 60 * 1000;
 
@@ -37,16 +36,17 @@ const SET_SHEET_BASE_HEADERS = [
 const SET_SHEET_OPTIONAL_HEADERS = {
   CARD_ID: "Card ID",
   MANUAL_PRICE: "ManualPriceGBP",
+  EBAY_PRICE: "EbayPrice",
+  POKEMONTCG_PRICE: "PokemonTCGPrice",
+  CHOSEN_PRICE: "ChosenPrice",
   PRICE_CONFIDENCE: "PriceConfidence",
   PRICE_METHOD: "PriceMethod",
-  CARD_KEY: "CardKey",
-  SOURCE_POKEMONTCG: "PriceSource_PokemonTCG",
-  SOURCE_TCGPLAYER: "PriceSource_TCGPlayer"
+  CARD_KEY: "CardKey"
 };
 
 const SOURCE_KEYS = {
-  POKEMONTCG: "PokemonTCGCardmarket",
-  TCGPLAYER: "TCGPlayer"
+  POKEMONTCG: "pokemontcg",
+  EBAY: "ebay"
 };
 
 const SET_SHEET_REQUIRED_HEADERS = [

@@ -71,6 +71,9 @@ function applySetSheetStyling(sheet) {
     sheet.getRange(2, SET_SHEET_COLUMNS.TOTAL, lastRow - 1, 1).setHorizontalAlignment("center");
   }
 
+  const bandings = sheet.getBandings();
+  bandings.forEach(banding => banding.remove());
+
   sheet.getRange(1, 1, lastRow, lastCol)
     .setBorder(true, true, true, true, true, true)
     .applyRowBanding(SpreadsheetApp.BandingTheme.LIGHT_GREY);

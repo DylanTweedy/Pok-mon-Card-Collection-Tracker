@@ -5,15 +5,17 @@ function onOpen() {
   const ui = SpreadsheetApp.getUi();
   ui.createMenu("Pokémon Cards 🃏")
     .addItem("Create Set Sheet", "showSetSheetPrompt")
-    .addItem("Refresh Prices (All)", "refreshPricesAll")
     .addItem("Refresh Prices (Owned Only)", "refreshPricesOwnedOnly")
+    .addItem("Refresh Prices (All)", "refreshPricesAll")
     .addItem("Update Dashboard", "updateDashboard")
     .addItem("Export CSV", "exportSetsToCSV")
+    .addItem("Kubera: Link Assets", "kuberaLinkAssets")
+    .addItem("Kubera: Sync Next Batch (25)", "kuberaSyncNextBatch")
     .addToUi();
 }
 
 /**
- * Prompts the user for a set ID and creates or updates the sheet.
+ * Prompts the user for a set ID and creates the sheet if missing.
  */
 function showSetSheetPrompt() {
   const ui = SpreadsheetApp.getUi();

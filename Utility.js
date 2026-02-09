@@ -100,11 +100,12 @@ function ensureComputedColumns(sheet) {
   const optional = [
     SET_SHEET_OPTIONAL_HEADERS.CARD_ID,
     SET_SHEET_OPTIONAL_HEADERS.MANUAL_PRICE,
+    SET_SHEET_OPTIONAL_HEADERS.EBAY_PRICE,
+    SET_SHEET_OPTIONAL_HEADERS.POKEMONTCG_PRICE,
+    SET_SHEET_OPTIONAL_HEADERS.CHOSEN_PRICE,
     SET_SHEET_OPTIONAL_HEADERS.PRICE_CONFIDENCE,
     SET_SHEET_OPTIONAL_HEADERS.PRICE_METHOD,
-    SET_SHEET_OPTIONAL_HEADERS.CARD_KEY,
-    SET_SHEET_OPTIONAL_HEADERS.SOURCE_POKEMONTCG,
-    SET_SHEET_OPTIONAL_HEADERS.SOURCE_TCGPLAYER
+    SET_SHEET_OPTIONAL_HEADERS.CARD_KEY
   ];
 
   optional.forEach(name => {
@@ -113,11 +114,14 @@ function ensureComputedColumns(sheet) {
     }
   });
 
-  if (updated.length !== header.length || updated.join("|") !== header.join("|")) {
-    sheet.getRange(1, 1, 1, updated.length).setValues([updated]);
+  const existingNormalized = header.map(normalizeHeaderValue);
+  const missing = updated.slice(header.length);
+
+  if (missing.length) {
+    sheet.getRange(1, header.length + 1, 1, missing.length).setValues([missing]);
   }
 
-  const headerIndex = buildHeaderIndex(updated);
+  const headerIndex = buildHeaderIndex(sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]);
   applyComputedColumnFormats(sheet, headerIndex);
   return headerIndex;
 }
@@ -154,24 +158,31 @@ function applyComputedColumnFormats(sheet, headerIndex) {
     sheet.getRange(2, confidenceIndex, lastRow - 1, 1).setNumberFormat("0.00");
   }
 
-  const sourcePokemonIndex = getOptionalColumnIndex(headerIndex, SET_SHEET_OPTIONAL_HEADERS.SOURCE_POKEMONTCG);
-  if (sourcePokemonIndex) {
-    sheet.getRange(2, sourcePokemonIndex, lastRow - 1, 1).setNumberFormat("\u00a3#,##0.00");
+  const ebayIndex = getOptionalColumnIndex(headerIndex, SET_SHEET_OPTIONAL_HEADERS.EBAY_PRICE);
+  if (ebayIndex) {
+    sheet.getRange(2, ebayIndex, lastRow - 1, 1).setNumberFormat("\u00a3#,##0.00");
   }
 
-  const sourceTcgIndex = getOptionalColumnIndex(headerIndex, SET_SHEET_OPTIONAL_HEADERS.SOURCE_TCGPLAYER);
-  if (sourceTcgIndex) {
-    sheet.getRange(2, sourceTcgIndex, lastRow - 1, 1).setNumberFormat("\u00a3#,##0.00");
+  const pokemonIndex = getOptionalColumnIndex(headerIndex, SET_SHEET_OPTIONAL_HEADERS.POKEMONTCG_PRICE);
+  if (pokemonIndex) {
+    sheet.getRange(2, pokemonIndex, lastRow - 1, 1).setNumberFormat("\u00a3#,##0.00");
+  }
+
+  const chosenIndex = getOptionalColumnIndex(headerIndex, SET_SHEET_OPTIONAL_HEADERS.CHOSEN_PRICE);
+  if (chosenIndex) {
+    sheet.getRange(2, chosenIndex, lastRow - 1, 1).setNumberFormat("\u00a3#,##0.00");
   }
 }
 
 function getSourceColumnIndexes(headerIndex) {
-  const pokemonCol = getOptionalColumnIndex(headerIndex, SET_SHEET_OPTIONAL_HEADERS.SOURCE_POKEMONTCG);
-  const tcgCol = getOptionalColumnIndex(headerIndex, SET_SHEET_OPTIONAL_HEADERS.SOURCE_TCGPLAYER);
   const baseOffset = SET_SHEET_COLUMNS.PRICE;
+  const ebayCol = getOptionalColumnIndex(headerIndex, SET_SHEET_OPTIONAL_HEADERS.EBAY_PRICE);
+  const pokemonCol = getOptionalColumnIndex(headerIndex, SET_SHEET_OPTIONAL_HEADERS.POKEMONTCG_PRICE);
+  const chosenCol = getOptionalColumnIndex(headerIndex, SET_SHEET_OPTIONAL_HEADERS.CHOSEN_PRICE);
 
   return [
-    { column: pokemonCol, offset: pokemonCol ? pokemonCol - baseOffset : null },
-    { column: tcgCol, offset: tcgCol ? tcgCol - baseOffset : null }
+    { column: ebayCol, offset: ebayCol ? ebayCol - baseOffset : null, key: SOURCE_KEYS.EBAY },
+    { column: pokemonCol, offset: pokemonCol ? pokemonCol - baseOffset : null, key: SOURCE_KEYS.POKEMONTCG },
+    { column: chosenCol, offset: chosenCol ? chosenCol - baseOffset : null, key: "chosen" }
   ];
 }

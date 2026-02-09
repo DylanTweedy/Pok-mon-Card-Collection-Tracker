@@ -19,27 +19,23 @@ function getBestPriceGBP(card, options) {
     return cached;
   }
 
-  const sources = [
-    fetchFromPokemonTCGCardmarket,
-    fetchFromPokemonTCGTcgplayer
-  ];
-
   const observations = [];
-  sources.forEach(sourceFn => {
-    const obs = sourceFn(card, options);
-    if (obs && obs.priceGBP) observations.push(obs);
-  });
+  const pokemonObs = fetchFromPokemonTCGCardmarket(card);
+  if (pokemonObs && pokemonObs.priceGBP) observations.push(pokemonObs);
 
-  const result = choosePriceFromObservations(observations, sources.length);
+  const ebayObs = fetchEbayObservation(card);
+  if (ebayObs && ebayObs.priceGBP) observations.push(ebayObs);
+
+  const result = choosePriceFromObservations(observations);
   setCachedPrice(cardKey, result);
   return result;
 }
 
-function choosePriceFromObservations(observations, sourceCount) {
+function choosePriceFromObservations(observations) {
   if (!observations.length) {
     return {
       chosenPriceGBP: null,
-      method: "fallbackSingle",
+      method: "fallback",
       observations: [],
       confidence: 0,
       coverage: 0,
@@ -51,47 +47,47 @@ function choosePriceFromObservations(observations, sourceCount) {
   if (!prices.length) {
     return {
       chosenPriceGBP: null,
-      method: "fallbackSingle",
+      method: "fallback",
       observations: observations,
       confidence: 0,
-      coverage: observations.length / sourceCount,
+      coverage: observations.length,
       reason: "No valid prices"
     };
   }
 
-  const median = computeMedian(prices);
-  const filtered = prices.filter(v => v >= median * 0.5 && v <= median * 2);
-  const usable = filtered.length ? filtered : prices;
-  const coverage = observations.length / sourceCount;
+  const pokemon = observations.find(o => o.source === SOURCE_KEYS.POKEMONTCG);
+  const ebay = observations.find(o => o.source === SOURCE_KEYS.EBAY);
 
   let chosen = 0;
-  let method = "median";
+  let method = "fallback";
   let confidence = average(observations.map(o => o.confidence || 0.5));
-  let reason = "";
+  let reason = "Single source";
 
-  if (usable.length >= 3) {
-    chosen = computeMedian(usable);
-    reason = "Median of multiple sources";
-  } else if (usable.length === 2) {
-    const a = usable[0];
-    const b = usable[1];
-    const diff = Math.abs(a - b) / Math.max(a, b);
-    if (diff <= 0.1) {
-      chosen = (a + b) / 2;
-      method = "weightedMedian";
-      confidence *= 0.9;
-      reason = "Close pair average";
+  if (pokemon && ebay) {
+    const ratio = ebay.priceGBP / pokemon.priceGBP;
+    if (ratio >= 0.5 && ratio <= 2) {
+      chosen = ebay.priceGBP;
+      method = "ebay";
+      confidence = 0.75;
+      reason = "eBay within ratio of baseline";
     } else {
-      chosen = Math.min(a, b);
-      method = "fallbackSingle";
-      confidence *= 0.6;
-      reason = "Divergent pair, conservative pick";
+      chosen = computeMedian([pokemon.priceGBP, ebay.priceGBP]);
+      method = "median";
+      confidence = 0.45;
+      reason = "Sources diverged; median used";
     }
+  } else if (ebay) {
+    chosen = ebay.priceGBP;
+    method = "ebay";
+    confidence = 0.55;
+    reason = "Only eBay available";
+  } else if (pokemon) {
+    chosen = pokemon.priceGBP;
+    method = "pokemontcg";
+    confidence = 0.5;
+    reason = "Only PokemonTCG available";
   } else {
-    chosen = usable[0];
-    method = "fallbackSingle";
-    confidence *= 0.5;
-    reason = "Single source";
+    chosen = prices[0];
   }
 
   confidence = Math.max(0, Math.min(1, confidence));
@@ -101,20 +97,16 @@ function choosePriceFromObservations(observations, sourceCount) {
     method: method,
     observations: observations,
     confidence: confidence,
-    coverage: coverage,
+    coverage: observations.length,
     reason: reason
   };
 }
 
 function fetchFromPokemonTCGCardmarket(card) {
   if (!card.cardId) return null;
-  const apiKey = getPokemonTcgApiKey();
-  if (!apiKey) return null;
-
   try {
     const url = `https://api.pokemontcg.io/v2/cards/${card.cardId}`;
-    const options = { headers: { "X-Api-Key": apiKey } };
-    const res = UrlFetchApp.fetch(url, options);
+    const res = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
     const data = JSON.parse(res.getContentText()).data || {};
     const prices = data.cardmarket && data.cardmarket.prices ? data.cardmarket.prices : {};
     const priceEUR = prices.averageSellPrice || 0;
@@ -133,47 +125,15 @@ function fetchFromPokemonTCGCardmarket(card) {
   }
 }
 
-function fetchFromPokemonTCGTcgplayer(card) {
-  if (!card.cardId) return null;
-  const apiKey = getPokemonTcgApiKey();
-  if (!apiKey) return null;
-
-  try {
-    const url = `https://api.pokemontcg.io/v2/cards/${card.cardId}`;
-    const options = { headers: { "X-Api-Key": apiKey } };
-    const res = UrlFetchApp.fetch(url, options);
-    const data = JSON.parse(res.getContentText()).data || {};
-    const prices = data.tcgplayer && data.tcgplayer.prices ? data.tcgplayer.prices : {};
-    const priceUSD = pickTcgplayerPriceUSD(prices);
-    const fx = getFxRate("USD", "GBP");
-    const priceGBP = priceUSD * fx;
-
-    if (!priceGBP) return null;
-    return {
-      source: SOURCE_KEYS.TCGPLAYER,
-      priceGBP: priceGBP,
-      ts: new Date().toISOString(),
-      confidence: 0.75
-    };
-  } catch (err) {
-    return null;
-  }
-}
-
-function pickTcgplayerPriceUSD(prices) {
-  const types = Object.keys(prices || {});
-  for (let i = 0; i < types.length; i++) {
-    const entry = prices[types[i]];
-    if (!entry) continue;
-    if (entry.market) return entry.market;
-    if (entry.mid) return entry.mid;
-    if (entry.low) return entry.low;
-  }
-  return 0;
-}
-
-function getPokemonTcgApiKey() {
-  return getScriptPropertyValue("POKEMONTCG_API_KEY") || API_KEY;
+function fetchEbayObservation(card) {
+  const ebayResult = fetchEbaySoldMedianGBP(card);
+  if (!ebayResult || !ebayResult.chosenPriceGBP) return null;
+  return {
+    source: SOURCE_KEYS.EBAY,
+    priceGBP: ebayResult.chosenPriceGBP,
+    ts: new Date().toISOString(),
+    confidence: ebayResult.confidence || 0.6
+  };
 }
 
 function getFxRate(fromCurrency, toCurrency) {
