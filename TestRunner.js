@@ -13,14 +13,14 @@ function test_LogSnapshot() {
   Logger.log("logValueSnapshot completed.");
 }
 
-function test_RefreshPricesAllPokemonTCG() {
-  Logger.log("Running refreshPricesAllPokemonTCG...");
-  refreshPricesAllPokemonTCG();
-  Logger.log("refreshPricesAllPokemonTCG completed.");
+function test_RefreshPricesAll() {
+  Logger.log("Running refreshPricesAll...");
+  refreshPricesAll();
+  Logger.log("refreshPricesAll completed.");
 }
 
-function test_RefreshPricesOwnedOnlyPokemonTCG() {
-  Logger.log("Running refreshPricesOwnedOnlyPokemonTCG...");
-  refreshPricesOwnedOnlyPokemonTCG();
-  Logger.log("refreshPricesOwnedOnlyPokemonTCG completed.");
+function test_RefreshPricesOwnedOnly() {
+  Logger.log("Running refreshPricesOwnedOnly...");
+  refreshPricesOwnedOnly();
+  Logger.log("refreshPricesOwnedOnly completed.");
 }

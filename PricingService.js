@@ -141,6 +141,51 @@ function fetchEbayObservation(card) {
   };
 }
 
+function getPokemonTCGPriceGBP(card) {
+  const cached = getCachedSourcePrice(card.cardKey, SOURCE_KEYS.POKEMONTCG);
+  if (cached !== null && cached !== undefined) return cached;
+
+  const obs = fetchFromPokemonTCGCardmarket(card);
+  if (obs && obs.priceGBP) {
+    setCachedSourcePrice(card.cardKey, SOURCE_KEYS.POKEMONTCG, obs.priceGBP);
+    return obs.priceGBP;
+  }
+  return 0;
+}
+
+function getEbayPriceGBP(card) {
+  const cached = getCachedSourcePrice(card.cardKey, SOURCE_KEYS.EBAY);
+  if (cached !== null && cached !== undefined) return cached;
+
+  const obs = fetchEbayObservation(card);
+  if (obs && obs.priceGBP) {
+    setCachedSourcePrice(card.cardKey, SOURCE_KEYS.EBAY, obs.priceGBP);
+    return obs.priceGBP;
+  }
+  return 0;
+}
+
+function getCachedSourcePrice(cardKey, source) {
+  const cache = CacheService.getDocumentCache();
+  const key = `SRC_${source}_${Utilities.base64EncodeWebSafe(cardKey).substring(0, 80)}`;
+  const cached = cache.get(key);
+  if (cached) return parseFloat(cached);
+  const stored = PropertiesService.getDocumentProperties().getProperty(key);
+  if (stored) {
+    cache.put(key, stored, PRICE_CACHE_TTL_SECONDS);
+    return parseFloat(stored);
+  }
+  return null;
+}
+
+function setCachedSourcePrice(cardKey, source, price) {
+  const cache = CacheService.getDocumentCache();
+  const key = `SRC_${source}_${Utilities.base64EncodeWebSafe(cardKey).substring(0, 80)}`;
+  const value = String(price);
+  cache.put(key, value, PRICE_CACHE_TTL_SECONDS);
+  PropertiesService.getDocumentProperties().setProperty(key, value);
+}
+
 function getFxRate(fromCurrency, toCurrency) {
   if (fromCurrency === toCurrency) return 1;
   const cache = CacheService.getScriptCache();
