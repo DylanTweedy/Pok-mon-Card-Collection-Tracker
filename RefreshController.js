@@ -10,6 +10,9 @@ function refreshPricesOwnedOnly() {
 
 function refreshPricesInternal(ownedOnly) {
   const sheets = getActiveSets();
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const modeLabel = ownedOnly ? "Owned Only" : "All";
+  ss.toast(`Starting price refresh (${modeLabel})`, "Pokémon Cards");
 
   sheets.forEach(sheet => {
     const lastRow = sheet.getLastRow();
@@ -35,6 +38,9 @@ function refreshPricesInternal(ownedOnly) {
     const cardKeyIndex = getOptionalColumnIndex(headerIndex, SET_SHEET_OPTIONAL_HEADERS.CARD_KEY);
 
     const data = sheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
+    const totalRows = data.length;
+    let processed = 0;
+    let lastToastAt = Date.now();
     const priceValues = [];
     const totalValues = [];
     const ebayValues = ebayIndex ? [] : null;
@@ -61,6 +67,12 @@ function refreshPricesInternal(ownedOnly) {
       if (price && price > 0) {
         row[pokemonIndex - 1] = price;
       }
+      processed++;
+      if (Date.now() - lastToastAt > 1500) {
+        const pct = Math.min(100, Math.round((processed / Math.max(1, totalRows)) * 100));
+        ss.toast(`PokemonTCG ${pct}% (${sheet.getName()})`, "Pokémon Cards");
+        lastToastAt = Date.now();
+      }
     }
 
     // Pass 2: eBay (budgeted, owned only)
@@ -84,6 +96,12 @@ function refreshPricesInternal(ownedOnly) {
         });
         if (price && price > 0) {
           row[ebayIndex - 1] = price;
+        }
+        processed++;
+        if (Date.now() - lastToastAt > 1500) {
+          const pct = Math.min(100, Math.round((processed / Math.max(1, totalRows)) * 100));
+          ss.toast(`eBay ${pct}% (${sheet.getName()})`, "Pokémon Cards");
+          lastToastAt = Date.now();
         }
       }
     }
@@ -147,6 +165,11 @@ function refreshPricesInternal(ownedOnly) {
       if (confidenceValues) confidenceValues.push([confidence || 0]);
       if (methodValues) methodValues.push([method || ""]);
       if (cardKeyValues) cardKeyValues.push([cardKey || ""]);
+      if (Date.now() - lastToastAt > 1500) {
+        const pct = Math.min(100, Math.round((i + 1) / Math.max(1, totalRows) * 100));
+        ss.toast(`Finalize ${pct}% (${sheet.getName()})`, "Pokémon Cards");
+        lastToastAt = Date.now();
+      }
     }
 
     sheet.getRange(2, SET_SHEET_COLUMNS.PRICE, priceValues.length, 1).setValues(priceValues);
@@ -157,9 +180,11 @@ function refreshPricesInternal(ownedOnly) {
     if (confidenceValues) sheet.getRange(2, priceConfidenceIndex, confidenceValues.length, 1).setValues(confidenceValues);
     if (methodValues) sheet.getRange(2, priceMethodIndex, methodValues.length, 1).setValues(methodValues);
     if (cardKeyValues) sheet.getRange(2, cardKeyIndex, cardKeyValues.length, 1).setValues(cardKeyValues);
+    ss.toast(`Completed ${sheet.getName()}`, "Pokémon Cards");
   });
 
   PropertiesService.getDocumentProperties().setProperty("LAST_REFRESH_TS", new Date().toISOString());
+  ss.toast(`Price refresh complete (${modeLabel})`, "Pokémon Cards");
 }
 
 function getSourcePrice(observations, sourceName) {
