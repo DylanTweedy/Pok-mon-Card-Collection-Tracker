@@ -8,5 +8,6 @@
 ## Quality
 - Prefer removing dead or duplicate code over preserving backwards compatibility.
 - Keep Apps Script code compatible with `.js` conventions and runtime limitations.
+- Visible sheet headers should be human-friendly with spacing and emojis; avoid camelCase in user-facing labels.
 
 

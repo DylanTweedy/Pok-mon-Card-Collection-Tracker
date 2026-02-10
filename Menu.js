@@ -5,10 +5,12 @@ function onOpen() {
   const ui = SpreadsheetApp.getUi();
   ui.createMenu("Pokémon Cards 🃏")
     .addItem("Create Set Sheet", "showSetSheetPrompt")
-    .addItem("🧹 Repair Layout / Hide Columns", "repairLayoutAllSheets")
-    .addItem("💷 Update Prices", "updatePrices")
+    .addItem("🧹 Repair Layout", "repairLayoutAllSheets")
+    .addItem("💷 Refresh Prices", "refreshPrices")
     .addItem("Update Dashboard", "updateDashboard")
     .addItem("Export CSV", "exportSetsToCSV")
+    .addItem("Debug: PTCG Card", "debugPTCGCard")
+    .addItem("Debug: eBay Price", "debugEbayPrice")
     .addItem("Kubera: Link Assets", "kuberaLinkAssets")
     .addItem("Kubera: Sync Next Batch (25)", "kuberaSyncNextBatch")
     .addToUi();

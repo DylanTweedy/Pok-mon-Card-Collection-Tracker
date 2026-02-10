@@ -193,21 +193,50 @@ function getPokemonTCGSignals(cardId, cardKey) {
     const url = `https://api.pokemontcg.io/v2/cards/${cardId}`;
     const res = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
     const data = JSON.parse(res.getContentText()).data || {};
-    const prices = data.cardmarket && data.cardmarket.prices ? data.cardmarket.prices : {};
+    const cmPrices = data.cardmarket && data.cardmarket.prices ? data.cardmarket.prices : {};
+    const tcgPrices = data.tcgplayer && data.tcgplayer.prices ? data.tcgplayer.prices : {};
 
-    const fx = getFxRate("EUR", "GBP");
+    const fxEur = getFxRate("EUR", "GBP");
+    const fxUsd = getFxRate("USD", "GBP");
+
+    const cmAvgSell = toNumber(cmPrices.averageSellPrice) * fxEur;
+    const cmTrend = toNumber(cmPrices.trendPrice) * fxEur;
+    const cmLow = toNumber(cmPrices.lowPrice) * fxEur;
+    const cmAvg1 = toNumber(cmPrices.avg1 || cmPrices.average1) * fxEur;
+    const cmAvg7 = toNumber(cmPrices.avg7 || cmPrices.average7) * fxEur;
+    const cmAvg30 = toNumber(cmPrices.avg30 || cmPrices.average30) * fxEur;
+
+    let tcgBlock = null;
+    if (tcgPrices.holofoil) tcgBlock = tcgPrices.holofoil;
+    else if (tcgPrices.normal) tcgBlock = tcgPrices.normal;
+    else if (tcgPrices["1stEditionHolofoil"]) tcgBlock = tcgPrices["1stEditionHolofoil"];
+    else if (tcgPrices["1stEditionNormal"]) tcgBlock = tcgPrices["1stEditionNormal"];
+    else {
+      const keys = Object.keys(tcgPrices);
+      if (keys.length) tcgBlock = tcgPrices[keys[0]];
+    }
+
+    const tcgLow = tcgBlock ? toNumber(tcgBlock.low) * fxUsd : 0;
+    const tcgMid = tcgBlock ? toNumber(tcgBlock.mid) * fxUsd : 0;
+    const tcgHigh = tcgBlock ? toNumber(tcgBlock.high) * fxUsd : 0;
+    const tcgMarket = tcgBlock ? toNumber(tcgBlock.market) * fxUsd : 0;
+    const tcgDirectLow = tcgBlock ? toNumber(tcgBlock.directLow) * fxUsd : 0;
+
     const signals = {
-      avg: toNumber(prices.averageSellPrice) * fx,
-      trend: toNumber(prices.trendPrice) * fx,
-      low: toNumber(prices.lowPrice) * fx,
-      rev: toNumber(prices.reverseHoloTrend) * fx,
-      avg1: toNumber(prices.average1) * fx,
-      avg7: toNumber(prices.average7) * fx,
-      avg30: toNumber(prices.average30) * fx
+      cmAvgSell: cmAvgSell,
+      cmTrend: cmTrend,
+      cmLow: cmLow,
+      cmAvg1: cmAvg1,
+      cmAvg7: cmAvg7,
+      cmAvg30: cmAvg30,
+      tcgLow: tcgLow,
+      tcgMid: tcgMid,
+      tcgHigh: tcgHigh,
+      tcgMarket: tcgMarket,
+      tcgDirectLow: tcgDirectLow
     };
 
-    const candidates = [signals.avg, signals.trend, signals.low, signals.rev, signals.avg1, signals.avg7, signals.avg30]
-      .filter(v => v > 0);
+    const candidates = [cmAvgSell, cmTrend, cmLow, cmAvg1, cmAvg7, cmAvg30].filter(v => v > 0);
     signals.best = candidates.length ? computeMedian(candidates) : 0;
 
     setCachedSignals(cardKey, signals);
@@ -217,25 +246,205 @@ function getPokemonTCGSignals(cardId, cardKey) {
   }
 }
 
+const SIGNALS_CACHE_VERSION = 2;
+
 function getCachedSignals(cardKey) {
-  const key = `SIG_${Utilities.base64EncodeWebSafe(cardKey).substring(0, 80)}`;
+  const key = `SIG_${SIGNALS_CACHE_VERSION}_${Utilities.base64EncodeWebSafe(cardKey).substring(0, 80)}`;
   const cache = CacheService.getDocumentCache();
   const cached = cache.get(key);
-  if (cached) return JSON.parse(cached);
+  if (cached) {
+    const parsed = JSON.parse(cached);
+    return hasAnySignals(parsed) ? parsed : null;
+  }
 
   const stored = PropertiesService.getDocumentProperties().getProperty(key);
   if (stored) {
-    cache.put(key, stored, PRICE_CACHE_TTL_SECONDS);
-    return JSON.parse(stored);
+    const parsed = JSON.parse(stored);
+    if (hasAnySignals(parsed)) {
+      cache.put(key, stored, PRICE_CACHE_TTL_SECONDS);
+      return parsed;
+    }
+    return null;
   }
   return null;
 }
 
 function setCachedSignals(cardKey, signals) {
-  const key = `SIG_${Utilities.base64EncodeWebSafe(cardKey).substring(0, 80)}`;
+  if (!hasAnySignals(signals)) return;
+  const key = `SIG_${SIGNALS_CACHE_VERSION}_${Utilities.base64EncodeWebSafe(cardKey).substring(0, 80)}`;
   const payload = JSON.stringify(signals);
   CacheService.getDocumentCache().put(key, payload, PRICE_CACHE_TTL_SECONDS);
   PropertiesService.getDocumentProperties().setProperty(key, payload);
+}
+
+function hasAnySignals(signals) {
+  if (!signals) return false;
+  const values = [
+    signals.cmAvgSell, signals.cmTrend, signals.cmLow, signals.cmAvg1, signals.cmAvg7, signals.cmAvg30,
+    signals.tcgLow, signals.tcgMid, signals.tcgHigh, signals.tcgMarket, signals.tcgDirectLow
+  ];
+  return values.some(v => toNumber(v) > 0);
+}
+
+function resolveCardIdFromSetMap(sheetName, cardName, rarity) {
+  const setId = resolveSetIdForSheetName(sheetName);
+  if (!setId) return "";
+
+  const map = getSetCardIdMap(setId);
+  if (!map) return "";
+
+  const name = toTrimmedString(cardName).toLowerCase();
+  const rare = toTrimmedString(rarity).toLowerCase();
+  if (!name) return "";
+
+  const key = rare ? `${name}|${rare}` : name;
+  if (map[key]) return map[key];
+  if (map[name]) return map[name];
+  return "";
+}
+
+function resolveSetIdForSheetName(sheetName) {
+  const safeName = toTrimmedString(sheetName);
+  if (!safeName) return "";
+
+  const alias = {
+    "Base": "base1",
+    "Jungle": "base2",
+    "Fossil": "base3",
+    "Base Set 2": "base4",
+    "Team Rocket": "base5",
+    "Gym Heroes": "gym1",
+    "Gym Challenge": "gym2",
+    "Neo Genesis": "neo1",
+    "Neo Discovery": "neo2",
+    "Neo Revelation": "neo3",
+    "Neo Destiny": "neo4",
+    "Legendary Collection": "base6",
+    "Wizards Black Star Promos": "basep"
+  };
+  if (alias[safeName]) return alias[safeName];
+
+  const key = `SETID_${Utilities.base64EncodeWebSafe(safeName.toLowerCase()).substring(0, 80)}`;
+  const cache = CacheService.getDocumentCache();
+  const cached = cache.get(key);
+  if (cached) return cached;
+
+  const props = PropertiesService.getDocumentProperties();
+  const stored = props.getProperty(key);
+  if (stored) {
+    cache.put(key, stored, PRICE_CACHE_TTL_SECONDS);
+    return stored;
+  }
+
+  try {
+    const url = `https://api.pokemontcg.io/v2/sets?q=name:"${safeName.replace(/"/g, "")}"&pageSize=5`;
+    const res = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+    const json = JSON.parse(res.getContentText() || "{}");
+    const data = json && json.data ? json.data : [];
+    if (!data.length) return "";
+
+    const exact = data.find(set => toTrimmedString(set.name) === safeName);
+    const setId = exact ? exact.id : data[0].id;
+    if (setId) {
+      props.setProperty(key, setId);
+      cache.put(key, setId, PRICE_CACHE_TTL_SECONDS);
+    }
+    return setId || "";
+  } catch (err) {
+    return "";
+  }
+}
+
+function getSetCardIdMap(setId) {
+  if (!setId) return null;
+  const key = `SETMAP_${setId}`;
+  const cache = CacheService.getDocumentCache();
+  const cached = cache.get(key);
+  if (cached) return JSON.parse(cached);
+
+  const props = PropertiesService.getDocumentProperties();
+  const stored = props.getProperty(key);
+  if (stored) {
+    cache.put(key, stored, PRICE_CACHE_TTL_SECONDS);
+    return JSON.parse(stored);
+  }
+
+  try {
+    const url = `https://api.pokemontcg.io/v2/cards?q=set.id:${setId}&pageSize=250`;
+    const res = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+    const json = JSON.parse(res.getContentText() || "{}");
+    const data = json && json.data ? json.data : [];
+    if (!data.length) return null;
+
+    const map = {};
+    data.forEach(card => {
+      const name = toTrimmedString(card.name).toLowerCase();
+      const rare = toTrimmedString(card.rarity).toLowerCase();
+      if (!name) return;
+      const keyWithRare = rare ? `${name}|${rare}` : name;
+      if (!map[keyWithRare]) map[keyWithRare] = card.id || "";
+      if (!map[name]) map[name] = card.id || "";
+    });
+
+    const payload = JSON.stringify(map);
+    props.setProperty(key, payload);
+    cache.put(key, payload, PRICE_CACHE_TTL_SECONDS);
+    return map;
+  } catch (err) {
+    return null;
+  }
+}
+
+
+function resolveCardIdByNameSet(setName, cardName, rarity) {
+  const safeSet = toTrimmedString(setName);
+  const safeName = toTrimmedString(cardName);
+  if (!safeSet || !safeName) return "";
+
+  const key = `CID_${Utilities.base64EncodeWebSafe((safeSet + "|" + safeName).toLowerCase()).substring(0, 80)}`;
+  const cache = CacheService.getDocumentCache();
+  const cached = cache.get(key);
+  if (cached) return cached;
+
+  const props = PropertiesService.getDocumentProperties();
+  const stored = props.getProperty(key);
+  if (stored) {
+    cache.put(key, stored, PRICE_CACHE_TTL_SECONDS);
+    return stored;
+  }
+
+  try {
+    const cleanSet = safeSet.replace(/"/g, "");
+    const cleanName = safeName.replace(/"/g, "");
+    const cleanRarity = toTrimmedString(rarity).replace(/"/g, "");
+    const baseQuery = `set.name:"${cleanSet}" name:"${cleanName}"`;
+    const rarityQuery = cleanRarity ? `${baseQuery} rarity:"${cleanRarity}"` : baseQuery;
+
+    let res = UrlFetchApp.fetch(`https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(rarityQuery)}&pageSize=5`, { muteHttpExceptions: true });
+    let json = JSON.parse(res.getContentText() || "{}");
+    let data = json && json.data ? json.data : [];
+
+    if (!data.length) {
+      res = UrlFetchApp.fetch(`https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(baseQuery)}&pageSize=5`, { muteHttpExceptions: true });
+      json = JSON.parse(res.getContentText() || "{}");
+      data = json && json.data ? json.data : [];
+    }
+
+    let cardId = "";
+    if (data.length === 1) {
+      cardId = data[0].id || "";
+    } else if (data.length > 1) {
+      const matched = data.find(item => toTrimmedString(item.rarity) === cleanRarity);
+      cardId = (matched && matched.id) ? matched.id : "";
+    }
+    if (cardId) {
+      props.setProperty(key, cardId);
+      cache.put(key, cardId, PRICE_CACHE_TTL_SECONDS);
+    }
+    return cardId || "";
+  } catch (err) {
+    return "";
+  }
 }
 
 function getCachedSourcePrice(cardKey, source) {

@@ -28,21 +28,28 @@ function createSetSheet(setId) {
   }
 
   sheet = ss.insertSheet(sheetName);
-  sheet.appendRow(buildSetSheetHeaderRow());
+  const headerRow = buildSetSheetHeaderRow();
+  sheet.appendRow(headerRow);
 
+  const headerIndex = buildHeaderIndex(headerRow);
   const rows = cards.map(card => {
     const cardmarket = card.cardmarket && card.cardmarket.prices ? card.cardmarket.prices : {};
     const priceEUR = cardmarket.averageSellPrice || 0;
     const priceGBP = priceEUR * EUR_TO_GBP;
-    return [
-      0,
-      "Near Mint",
-      card.name || "Unknown",
-      card.rarity || "Unknown",
-      priceGBP,
-      0,
-      card.id || ""
-    ];
+
+    const row = new Array(headerRow.length).fill("");
+    row[SET_SHEET_COLUMNS.QUANTITY - 1] = 0;
+    row[SET_SHEET_COLUMNS.CONDITION - 1] = "Near Mint";
+    row[SET_SHEET_COLUMNS.NAME - 1] = card.name || "Unknown";
+    row[SET_SHEET_COLUMNS.RARITY - 1] = card.rarity || "Unknown";
+    row[SET_SHEET_COLUMNS.PRICE - 1] = priceGBP || 0;
+    row[SET_SHEET_COLUMNS.TOTAL - 1] = 0;
+    row[SET_SHEET_COLUMNS.OVERRIDE - 1] = "";
+    row[SET_SHEET_COLUMNS.CONFIDENCE - 1] = "";
+
+    const cardIdIndex = getOptionalColumnIndex(headerIndex, SET_SHEET_OPTIONAL_HEADERS.CARD_ID);
+    if (cardIdIndex) row[cardIdIndex - 1] = card.id || "";
+    return row;
   });
 
   if (rows.length) {
@@ -57,6 +64,7 @@ function createSetSheet(setId) {
   if (numRows > 0) {
     sheet.getRange(2, SET_SHEET_COLUMNS.PRICE, numRows).setNumberFormat("\u00a3#,##0.00");
     sheet.getRange(2, SET_SHEET_COLUMNS.TOTAL, numRows).setNumberFormat("\u00a3#,##0.00");
+    sheet.getRange(2, SET_SHEET_COLUMNS.OVERRIDE, numRows).setNumberFormat("\u00a3#,##0.00");
   }
 }
 

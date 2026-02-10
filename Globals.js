@@ -1,4 +1,4 @@
-const USD_TO_GBP = 0.78;
+﻿const USD_TO_GBP = 0.78;
 const EUR_TO_GBP = 0.85;
 
 const FX_CACHE_TTL_SECONDS = 60 * 60 * 24;
@@ -13,7 +13,7 @@ const CONDITIONS = {
   "Damaged": 0.4
 };
 
-const EXCLUDED_SHEETS = ["Dashboard", "Overview", "ValueLog"];
+const EXCLUDED_SHEETS = ["Dashboard", "Overview", "ValueLog", "PTCG Debug"];
 
 const SET_SHEET_COLUMNS = {
   QUANTITY: 1,
@@ -21,34 +21,39 @@ const SET_SHEET_COLUMNS = {
   NAME: 3,
   RARITY: 4,
   PRICE: 5,
-  TOTAL: 6
+  OVERRIDE: 6,
+  TOTAL: 7,
+  CONFIDENCE: 8
 };
 
 const SET_SHEET_BASE_HEADERS = [
-  "Quantity",
-  "Condition",
-  "Name",
-  "Rarity",
-  "Market Price (GBP)",
-  "Total (GBP)"
+  "📦 Quantity",
+  "✨ Condition",
+  "🧾 Name",
+  "⭐ Rarity",
+  "💷 Market Price",
+  "✍️ Override (£)",
+  "🧮 Total",
+  "🟢 Confidence"
 ];
 
 const SET_SHEET_OPTIONAL_HEADERS = {
-  CARD_ID: "Card ID",
-  MANUAL_PRICE: "ManualPriceGBP",
-  EBAY_PRICE: "Ebay Price",
-  POKEMONTCG_PRICE: "PokemonTCG Price",
-  POKEMONTCG_AVG: "PokemonTCG Avg Sell",
-  POKEMONTCG_TREND: "PokemonTCG Trend",
-  POKEMONTCG_LOW: "PokemonTCG Low",
-  POKEMONTCG_REV_HOLO: "PokemonTCG Reverse Holo",
-  POKEMONTCG_AVG1: "PokemonTCG Avg 1",
-  POKEMONTCG_AVG7: "PokemonTCG Avg 7",
-  POKEMONTCG_AVG30: "PokemonTCG Avg 30",
-  LAST_UPDATED: "Last Updated",
-  PRICE_CONFIDENCE: "PriceConfidence",
-  PRICE_METHOD: "PriceMethod",
-  CARD_KEY: "CardKey"
+  UPDATED_AT: "⏱️ Updated At",
+  CARD_ID: "🆔 Card ID",
+  TCG_LOW: "🎯 TCG Low",
+  TCG_MID: "🎯 TCG Mid",
+  TCG_HIGH: "🎯 TCG High",
+  TCG_MARKET: "🎯 TCG Market",
+  TCG_DIRECT_LOW: "🎯 TCG Direct Low",
+  CM_AVG_SELL: "🧩 CM Avg Sell",
+  CM_TREND: "📈 CM Trend",
+  CM_LOW: "🔻 CM Low",
+  CM_AVG1: "🕒 CM Avg 1",
+  CM_AVG7: "📅 CM Avg 7",
+  CM_AVG30: "🗓️ CM Avg 30",
+  EBAY_MEDIAN: "🛒 eBay Median",
+  CONFIDENCE_SCORE: "📊 Confidence Score",
+  PRICE_METHOD: "🧪 Price Method"
 };
 
 const SOURCE_KEYS = {

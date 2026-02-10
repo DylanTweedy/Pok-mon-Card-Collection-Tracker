@@ -1,7 +1,7 @@
 ﻿// EbaySoldSource.js - scrape sold listings (free, HTML)
 
 function fetchEbaySoldMedianGBP(card) {
-  if (!getFlag("EBAY_SCRAPE_ENABLED", false)) return null;
+  if (!getFlag("EBAY_SCRAPE_ENABLED", true)) return null;
   if (!card || !card.name || !card.setName) return null;
   if (toNumber(card.qty) <= 0) return null;
 
@@ -17,10 +17,9 @@ function fetchEbaySoldMedianGBP(card) {
   const minSamples = parseInt(getOptionalSecret("EBAY_MIN_SAMPLES", "3"), 10) || 3;
 
   try {
-    const query = encodeURIComponent(`${card.name} ${card.setName} pokemon`);
-    const url = `https://www.ebay.co.uk/sch/i.html?_nkw=${query}&LH_Complete=1&LH_Sold=1&_sop=13&rt=nc`;
-    const res = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
-    const html = res.getContentText();
+    const query = `${card.name} ${card.setName} pokemon`;
+    const html = fetchEbayHtml(query);
+    if (!html) return null;
 
     const prices = extractEbayPrices(html).map(p => normalizeToGBP(p.currency, p.amount));
     const valid = prices.filter(v => v > 0);
@@ -55,7 +54,39 @@ function extractEbayPrices(html) {
     const parsed = parsePriceText(text);
     if (parsed) results.push(parsed);
   }
+  if (results.length) return results;
+
+  const altRegex = /(\u00a3|\$|\€)\s*([0-9]+(?:\.[0-9]+)?)/g;
+  while ((match = altRegex.exec(html)) !== null) {
+    results.push({ currency: match[1], amount: parseFloat(match[2]) });
+  }
   return results;
+}
+
+function fetchEbayHtml(query) {
+  const result = fetchEbayHtmlDebug(query);
+  return result.text || "";
+}
+
+function fetchEbayHtmlDebug(query) {
+  const encoded = encodeURIComponent(query);
+  const url = `https://www.ebay.co.uk/sch/i.html?_nkw=${encoded}&LH_Complete=1&LH_Sold=1&_sop=13&rt=nc`;
+  const headers = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+    "Accept-Language": "en-GB,en;q=0.9"
+  };
+
+  const res = UrlFetchApp.fetch(url, { muteHttpExceptions: true, headers: headers });
+  const html = res.getContentText();
+  if (html && html.length > 1000 && html.indexOf("s-item__price") !== -1) {
+    return { text: html, source: "direct" };
+  }
+
+  // Fallback via jina.ai text proxy (often bypasses bot blocks)
+  const proxy = `https://r.jina.ai/http://www.ebay.co.uk/sch/i.html?_nkw=${encoded}&LH_Complete=1&LH_Sold=1&_sop=13&rt=nc`;
+  const proxyRes = UrlFetchApp.fetch(proxy, { muteHttpExceptions: true, headers: headers });
+  const proxyText = proxyRes.getContentText();
+  return { text: proxyText || "", source: "jina" };
 }
 
 function parsePriceText(text) {

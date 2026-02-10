@@ -122,14 +122,13 @@ function getOwnedCardsForSync() {
   getActiveSets().forEach(sheet => {
     const header = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
     const headerIndex = buildHeaderIndex(header);
-    const chosenIndex = getOptionalColumnIndex(headerIndex, SET_SHEET_OPTIONAL_HEADERS.CHOSEN_PRICE);
     const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
 
     data.forEach(row => {
       const qty = toNumber(row[SET_SHEET_COLUMNS.QUANTITY - 1]);
       if (qty <= 0) return;
       const cardKey = getCardKey(sheet.getName(), row, headerIndex);
-      const price = chosenIndex ? toNumber(row[chosenIndex - 1]) : toNumber(row[SET_SHEET_COLUMNS.PRICE - 1]);
+      const price = toNumber(row[SET_SHEET_COLUMNS.PRICE - 1]);
       if (!price) return;
       owned.push({ cardKey: cardKey, priceGBP: price });
     });

@@ -14,7 +14,7 @@ function isSetSheet(sheet) {
   if (EXCLUDED_SHEETS.includes(name)) return false;
   if (sheet.getLastRow() < 1) return false;
 
-  const header = sheet.getRange(1, 1, 1, Math.min(sheet.getLastColumn(), SET_SHEET_COLUMNS.TOTAL)).getValues()[0];
+  const header = sheet.getRange(1, 1, 1, Math.min(sheet.getLastColumn(), SET_SHEET_COLUMNS.CONFIDENCE)).getValues()[0];
   if (header.length < SET_SHEET_REQUIRED_HEADERS.length) return false;
 
   for (let i = 0; i < SET_SHEET_REQUIRED_HEADERS.length; i++) {
@@ -35,21 +35,22 @@ function normalizeHeaderValue(value) {
 function buildSetSheetHeaderRow() {
   const base = SET_SHEET_BASE_HEADERS.slice();
   return base.concat([
-    SET_SHEET_OPTIONAL_HEADERS.MANUAL_PRICE,
-    SET_SHEET_OPTIONAL_HEADERS.EBAY_PRICE,
-    SET_SHEET_OPTIONAL_HEADERS.POKEMONTCG_PRICE,
-    SET_SHEET_OPTIONAL_HEADERS.POKEMONTCG_AVG,
-    SET_SHEET_OPTIONAL_HEADERS.POKEMONTCG_TREND,
-    SET_SHEET_OPTIONAL_HEADERS.POKEMONTCG_LOW,
-    SET_SHEET_OPTIONAL_HEADERS.POKEMONTCG_REV_HOLO,
-    SET_SHEET_OPTIONAL_HEADERS.POKEMONTCG_AVG1,
-    SET_SHEET_OPTIONAL_HEADERS.POKEMONTCG_AVG7,
-    SET_SHEET_OPTIONAL_HEADERS.POKEMONTCG_AVG30,
-    SET_SHEET_OPTIONAL_HEADERS.LAST_UPDATED,
-    SET_SHEET_OPTIONAL_HEADERS.PRICE_CONFIDENCE,
-    SET_SHEET_OPTIONAL_HEADERS.PRICE_METHOD,
-    SET_SHEET_OPTIONAL_HEADERS.CARD_KEY,
-    SET_SHEET_OPTIONAL_HEADERS.CARD_ID
+    SET_SHEET_OPTIONAL_HEADERS.UPDATED_AT,
+    SET_SHEET_OPTIONAL_HEADERS.CARD_ID,
+    SET_SHEET_OPTIONAL_HEADERS.TCG_LOW,
+    SET_SHEET_OPTIONAL_HEADERS.TCG_MID,
+    SET_SHEET_OPTIONAL_HEADERS.TCG_HIGH,
+    SET_SHEET_OPTIONAL_HEADERS.TCG_MARKET,
+    SET_SHEET_OPTIONAL_HEADERS.TCG_DIRECT_LOW,
+    SET_SHEET_OPTIONAL_HEADERS.CM_AVG_SELL,
+    SET_SHEET_OPTIONAL_HEADERS.CM_TREND,
+    SET_SHEET_OPTIONAL_HEADERS.CM_LOW,
+    SET_SHEET_OPTIONAL_HEADERS.CM_AVG1,
+    SET_SHEET_OPTIONAL_HEADERS.CM_AVG7,
+    SET_SHEET_OPTIONAL_HEADERS.CM_AVG30,
+    SET_SHEET_OPTIONAL_HEADERS.EBAY_MEDIAN,
+    SET_SHEET_OPTIONAL_HEADERS.CONFIDENCE_SCORE,
+    SET_SHEET_OPTIONAL_HEADERS.PRICE_METHOD
   ]);
 }
 
@@ -63,7 +64,9 @@ function parseSetRow(row, headerIndex) {
     name: toTrimmedString(row[SET_SHEET_COLUMNS.NAME - 1]) || "Unknown",
     rarity: toTrimmedString(row[SET_SHEET_COLUMNS.RARITY - 1]) || "Unknown",
     price: toNumber(row[SET_SHEET_COLUMNS.PRICE - 1]),
+    override: toNumber(row[SET_SHEET_COLUMNS.OVERRIDE - 1]),
     total: toNumber(row[SET_SHEET_COLUMNS.TOTAL - 1]),
+    confidence: toTrimmedString(row[SET_SHEET_COLUMNS.CONFIDENCE - 1]) || "",
     cardId: cardIdIndex ? toTrimmedString(row[cardIdIndex - 1]) : ""
   };
 }
@@ -105,7 +108,7 @@ function getOptionalColumnIndex(headerIndex, headerName) {
 function ensureComputedColumns(sheet, options) {
   const applyFormats = options && options.applyFormats;
   const lastCol = sheet.getLastColumn();
-  const header = sheet.getRange(1, 1, 1, Math.max(lastCol, SET_SHEET_COLUMNS.TOTAL)).getValues()[0];
+  const header = sheet.getRange(1, 1, 1, Math.max(lastCol, SET_SHEET_COLUMNS.CONFIDENCE)).getValues()[0];
   const updated = header.slice();
   const required = SET_SHEET_BASE_HEADERS;
 
@@ -114,21 +117,22 @@ function ensureComputedColumns(sheet, options) {
   }
 
   const optional = [
+    SET_SHEET_OPTIONAL_HEADERS.UPDATED_AT,
     SET_SHEET_OPTIONAL_HEADERS.CARD_ID,
-    SET_SHEET_OPTIONAL_HEADERS.MANUAL_PRICE,
-    SET_SHEET_OPTIONAL_HEADERS.EBAY_PRICE,
-    SET_SHEET_OPTIONAL_HEADERS.POKEMONTCG_PRICE,
-    SET_SHEET_OPTIONAL_HEADERS.POKEMONTCG_AVG,
-    SET_SHEET_OPTIONAL_HEADERS.POKEMONTCG_TREND,
-    SET_SHEET_OPTIONAL_HEADERS.POKEMONTCG_LOW,
-    SET_SHEET_OPTIONAL_HEADERS.POKEMONTCG_REV_HOLO,
-    SET_SHEET_OPTIONAL_HEADERS.POKEMONTCG_AVG1,
-    SET_SHEET_OPTIONAL_HEADERS.POKEMONTCG_AVG7,
-    SET_SHEET_OPTIONAL_HEADERS.POKEMONTCG_AVG30,
-    SET_SHEET_OPTIONAL_HEADERS.LAST_UPDATED,
-    SET_SHEET_OPTIONAL_HEADERS.PRICE_CONFIDENCE,
-    SET_SHEET_OPTIONAL_HEADERS.PRICE_METHOD,
-    SET_SHEET_OPTIONAL_HEADERS.CARD_KEY
+    SET_SHEET_OPTIONAL_HEADERS.TCG_LOW,
+    SET_SHEET_OPTIONAL_HEADERS.TCG_MID,
+    SET_SHEET_OPTIONAL_HEADERS.TCG_HIGH,
+    SET_SHEET_OPTIONAL_HEADERS.TCG_MARKET,
+    SET_SHEET_OPTIONAL_HEADERS.TCG_DIRECT_LOW,
+    SET_SHEET_OPTIONAL_HEADERS.CM_AVG_SELL,
+    SET_SHEET_OPTIONAL_HEADERS.CM_TREND,
+    SET_SHEET_OPTIONAL_HEADERS.CM_LOW,
+    SET_SHEET_OPTIONAL_HEADERS.CM_AVG1,
+    SET_SHEET_OPTIONAL_HEADERS.CM_AVG7,
+    SET_SHEET_OPTIONAL_HEADERS.CM_AVG30,
+    SET_SHEET_OPTIONAL_HEADERS.EBAY_MEDIAN,
+    SET_SHEET_OPTIONAL_HEADERS.CONFIDENCE_SCORE,
+    SET_SHEET_OPTIONAL_HEADERS.PRICE_METHOD
   ];
 
   optional.forEach(name => {
@@ -168,37 +172,29 @@ function applyComputedColumnFormats(sheet, headerIndex) {
 
   const priceRange = sheet.getRange(2, SET_SHEET_COLUMNS.PRICE, lastRow - 1, 1);
   priceRange.setNumberFormat("\u00a3#,##0.00");
+  const overrideRange = sheet.getRange(2, SET_SHEET_COLUMNS.OVERRIDE, lastRow - 1, 1);
+  overrideRange.setNumberFormat("\u00a3#,##0.00");
   const totalRange = sheet.getRange(2, SET_SHEET_COLUMNS.TOTAL, lastRow - 1, 1);
   totalRange.setNumberFormat("\u00a3#,##0.00");
 
-  const manualIndex = getOptionalColumnIndex(headerIndex, SET_SHEET_OPTIONAL_HEADERS.MANUAL_PRICE);
-  if (manualIndex) {
-    sheet.getRange(2, manualIndex, lastRow - 1, 1).setNumberFormat("\u00a3#,##0.00");
-  }
-
-  const confidenceIndex = getOptionalColumnIndex(headerIndex, SET_SHEET_OPTIONAL_HEADERS.PRICE_CONFIDENCE);
+  const confidenceIndex = getOptionalColumnIndex(headerIndex, SET_SHEET_OPTIONAL_HEADERS.CONFIDENCE_SCORE);
   if (confidenceIndex) {
     sheet.getRange(2, confidenceIndex, lastRow - 1, 1).setNumberFormat("0.00");
   }
 
-  const ebayIndex = getOptionalColumnIndex(headerIndex, SET_SHEET_OPTIONAL_HEADERS.EBAY_PRICE);
-  if (ebayIndex) {
-    sheet.getRange(2, ebayIndex, lastRow - 1, 1).setNumberFormat("\u00a3#,##0.00");
-  }
-
-  const pokemonIndex = getOptionalColumnIndex(headerIndex, SET_SHEET_OPTIONAL_HEADERS.POKEMONTCG_PRICE);
-  if (pokemonIndex) {
-    sheet.getRange(2, pokemonIndex, lastRow - 1, 1).setNumberFormat("\u00a3#,##0.00");
-  }
-
   [
-    SET_SHEET_OPTIONAL_HEADERS.POKEMONTCG_AVG,
-    SET_SHEET_OPTIONAL_HEADERS.POKEMONTCG_TREND,
-    SET_SHEET_OPTIONAL_HEADERS.POKEMONTCG_LOW,
-    SET_SHEET_OPTIONAL_HEADERS.POKEMONTCG_REV_HOLO,
-    SET_SHEET_OPTIONAL_HEADERS.POKEMONTCG_AVG1,
-    SET_SHEET_OPTIONAL_HEADERS.POKEMONTCG_AVG7,
-    SET_SHEET_OPTIONAL_HEADERS.POKEMONTCG_AVG30
+    SET_SHEET_OPTIONAL_HEADERS.TCG_LOW,
+    SET_SHEET_OPTIONAL_HEADERS.TCG_MID,
+    SET_SHEET_OPTIONAL_HEADERS.TCG_HIGH,
+    SET_SHEET_OPTIONAL_HEADERS.TCG_MARKET,
+    SET_SHEET_OPTIONAL_HEADERS.TCG_DIRECT_LOW,
+    SET_SHEET_OPTIONAL_HEADERS.CM_AVG_SELL,
+    SET_SHEET_OPTIONAL_HEADERS.CM_TREND,
+    SET_SHEET_OPTIONAL_HEADERS.CM_LOW,
+    SET_SHEET_OPTIONAL_HEADERS.CM_AVG1,
+    SET_SHEET_OPTIONAL_HEADERS.CM_AVG7,
+    SET_SHEET_OPTIONAL_HEADERS.CM_AVG30,
+    SET_SHEET_OPTIONAL_HEADERS.EBAY_MEDIAN
   ].forEach(name => {
     const idx = getOptionalColumnIndex(headerIndex, name);
     if (idx) {
@@ -206,19 +202,19 @@ function applyComputedColumnFormats(sheet, headerIndex) {
     }
   });
 
-  const lastUpdatedIndex = getOptionalColumnIndex(headerIndex, SET_SHEET_OPTIONAL_HEADERS.LAST_UPDATED);
-  if (lastUpdatedIndex) {
-    sheet.getRange(2, lastUpdatedIndex, lastRow - 1, 1).setNumberFormat("yyyy-mm-dd hh:mm");
+  const updatedIndex = getOptionalColumnIndex(headerIndex, SET_SHEET_OPTIONAL_HEADERS.UPDATED_AT);
+  if (updatedIndex) {
+    sheet.getRange(2, updatedIndex, lastRow - 1, 1).setNumberFormat("yyyy-mm-dd hh:mm");
   }
 }
 
 function getSourceColumnIndexes(headerIndex) {
   const baseOffset = SET_SHEET_COLUMNS.PRICE;
-  const ebayCol = getOptionalColumnIndex(headerIndex, SET_SHEET_OPTIONAL_HEADERS.EBAY_PRICE);
-  const pokemonCol = getOptionalColumnIndex(headerIndex, SET_SHEET_OPTIONAL_HEADERS.POKEMONTCG_PRICE);
+  const ebayCol = getOptionalColumnIndex(headerIndex, SET_SHEET_OPTIONAL_HEADERS.EBAY_MEDIAN);
+  const cmCol = getOptionalColumnIndex(headerIndex, SET_SHEET_OPTIONAL_HEADERS.CM_AVG_SELL);
 
   return [
     { column: ebayCol, offset: ebayCol ? ebayCol - baseOffset : null, key: SOURCE_KEYS.EBAY },
-    { column: pokemonCol, offset: pokemonCol ? pokemonCol - baseOffset : null, key: SOURCE_KEYS.POKEMONTCG }
+    { column: cmCol, offset: cmCol ? cmCol - baseOffset : null, key: SOURCE_KEYS.POKEMONTCG }
   ];
 }

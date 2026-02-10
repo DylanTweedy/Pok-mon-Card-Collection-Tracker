@@ -13,7 +13,7 @@ function computePortfolioStats() {
     const data = sheet.getDataRange().getValues();
     if (data.length < 2) return;
     const headerIndex = buildHeaderIndex(data[0]);
-    const priceConfidenceIndex = getOptionalColumnIndex(headerIndex, SET_SHEET_OPTIONAL_HEADERS.PRICE_CONFIDENCE);
+    const priceConfidenceIndex = getOptionalColumnIndex(headerIndex, SET_SHEET_OPTIONAL_HEADERS.CONFIDENCE_SCORE);
 
     for (let i = 1; i < data.length; i++) {
       const row = data[i];

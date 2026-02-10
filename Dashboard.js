@@ -27,12 +27,15 @@ function updateDashboard() {
   dashboard.getRange("B6").setNumberFormat("0");
   dashboard.getRange("A7").setValue("Price Coverage:").setFontWeight("bold");
   dashboard.getRange("B7").setNumberFormat("0.0%");
+  dashboard.getRange("A8").setValue("Low-Confidence Owned:").setFontWeight("bold");
+  dashboard.getRange("B8").setNumberFormat("0");
 
   const setSheets = getActiveSets();
   let totalValue = 0;
   let totalOwned = 0;
   let distinctOwned = 0;
   let ownedWithPrice = 0;
+  let lowConfidenceOwned = 0;
   let confidenceSum = 0;
   let confidenceCount = 0;
   const setSummary = [["Set", "Cards in Set", "Cards Owned", "Progress", "Value (GBP)"]];
@@ -49,7 +52,7 @@ function updateDashboard() {
     let owned = 0;
     let value = 0;
 
-    const priceConfidenceIndex = getOptionalColumnIndex(headerIndex, SET_SHEET_OPTIONAL_HEADERS.PRICE_CONFIDENCE);
+    const priceConfidenceIndex = getOptionalColumnIndex(headerIndex, SET_SHEET_OPTIONAL_HEADERS.CONFIDENCE_SCORE);
 
     rows.forEach(row => {
       const rowName = toTrimmedString(row[SET_SHEET_COLUMNS.NAME - 1]);
@@ -70,8 +73,10 @@ function updateDashboard() {
         totalOwned += qty;
         distinctOwned++;
         if (priceConfidenceIndex) {
-          confidenceSum += toNumber(row[priceConfidenceIndex - 1]);
+          const c = toNumber(row[priceConfidenceIndex - 1]);
+          confidenceSum += c;
           confidenceCount++;
+          if (c > 0 && c < 0.4) lowConfidenceOwned++;
         }
       }
       value += price * qty * multiplier;
@@ -86,8 +91,9 @@ function updateDashboard() {
   dashboard.getRange("B6").setValue(totalOwned);
   const coveragePct = distinctOwned ? (ownedWithPrice / distinctOwned) : 0;
   dashboard.getRange("B7").setValue(coveragePct);
+  dashboard.getRange("B8").setValue(lowConfidenceOwned);
 
-  const setTableStart = 9;
+  const setTableStart = 10;
   dashboard.getRange(`A${setTableStart - 1}:F${setTableStart - 1}`).merge()
     .setValue("Set Completion and Value").setFontWeight("bold").setFontSize(14).setFontColor("#ffffff").setBackground("#222222");
   dashboard.getRange(setTableStart, 1, 1, 5).setValues([setSummary[0]]).setFontWeight("bold").setBackground("#1f1f1f").setFontColor("#ffffff");
